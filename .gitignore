@@ -1,0 +1,17 @@
+# Java / Maven
+backend/target/
+*.class
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/src/assets/runtime-config.js
+
+# Local environment configuration
+.env
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
