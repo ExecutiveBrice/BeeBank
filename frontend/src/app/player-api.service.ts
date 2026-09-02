@@ -16,4 +16,10 @@ export class PlayerApiService {
   create(name: string): Observable<Player> {
     return this.http.post<Player>(this.endpoint, { name });
   }
+
+  delete(id: number, password: string): Observable<void> {
+    return this.http.delete<void>(`${this.endpoint}/${id}`, {
+      headers: { 'X-Access-Password': password }
+    });
+  }
 }

@@ -17,6 +17,12 @@ export class BalanceEntryApiService {
     return this.http.post<BalanceEntry>(this.endpoint, { playerId, failureId });
   }
 
+  markAsPaid(id: number, password: string): Observable<BalanceEntry> {
+    return this.http.patch<BalanceEntry>(`${this.endpoint}/${id}/paid`, null, {
+      headers: { 'X-Access-Password': password }
+    });
+  }
+
   delete(id: number, password: string): Observable<void> {
     return this.http.delete<void>(`${this.endpoint}/${id}`, {
       headers: { 'X-Access-Password': password }

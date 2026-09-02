@@ -3,26 +3,22 @@
     <button
       type="button"
       class="tab"
-      [class.tab--active]="activeTab() === 'balance'"
-      [attr.aria-selected]="activeTab() === 'balance'"
-      (click)="selectTab('balance')"
-    >
-      <svg aria-hidden="true" viewBox="0 0 24 24">
-        <path d="M12 3v18M5 7h14M7 7l-3 6h6L7 7Zm10 0-3 6h6l-3-6ZM4 13a3 3 0 0 0 6 0m4 0a3 3 0 0 0 6 0" />
-      </svg>
-      <span>Balance</span>
-    </button>
-    <button
-      type="button"
-      class="tab"
       [class.tab--active]="activeTab() === 'podium'"
       [attr.aria-selected]="activeTab() === 'podium'"
       (click)="selectTab('podium')"
     >
-      <svg aria-hidden="true" viewBox="0 0 24 24">
-        <path d="M4 20h16M5 20v-6h5v6m1 0V9h5v11M17 20v-9h3v9M7.5 5.5l1 2 2.2.2-1.7 1.5.5 2.2-2-1.1-2 1.1.5-2.2-1.7-1.5 2.2-.2 1-2Z" />
-      </svg>
+      <i class="bi bi-trophy-fill tab-icon" aria-hidden="true"></i>
       <span>Podium</span>
+    </button>
+    <button
+      type="button"
+      class="tab"
+      [class.tab--active]="activeTab() === 'balance'"
+      [attr.aria-selected]="activeTab() === 'balance'"
+      (click)="selectTab('balance')"
+    >
+      <i class="bi bi-bullseye tab-icon" aria-hidden="true"></i>
+      <span>Balance</span>
     </button>
     <button
       type="button"
@@ -31,10 +27,7 @@
       [attr.aria-selected]="activeTab() === 'settings'"
       (click)="selectTab('settings')"
     >
-      <svg aria-hidden="true" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.2 2.2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3.2v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.2-2.2.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-3.2h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.2-2.2.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3.5h3.2v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.2 2.2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V13h-.2a1.7 1.7 0 0 0-1.5 1Z" />
-      </svg>
+      <i class="bi bi-gear-fill tab-icon" aria-hidden="true"></i>
       <span>Paramétrage</span>
     </button>
   </nav>
@@ -44,23 +37,43 @@
       <form (submit)="addBalanceEntry(); $event.preventDefault()">
         <div class="balance-form-fields">
           <div>
-            <select id="balance-player" [value]="selectedPlayerId()" (change)="updateSelectedPlayer($event)" required>
-              <option value="" disabled>Choisir un joueur</option>
+            <label class="visually-hidden" for="balance-player">Joueur</label>
+            <select
+              id="balance-player"
+              class="form-select shadow-sm"
+              [value]="selectedPlayerId()"
+              (change)="updateSelectedPlayer($event)"
+              required
+            >
+              <option value="" disabled>Joueur</option>
               @for (player of players(); track player.id) {
                 <option [value]="player.id">{{ player.name }}</option>
               }
             </select>
           </div>
           <div>
-            <select id="balance-failure" [value]="selectedFailureId()" (change)="updateSelectedFailure($event)" required>
-              <option value="" disabled>Choisir un échec</option>
+            <label class="visually-hidden" for="balance-failure">Échec</label>
+            <select
+              id="balance-failure"
+              class="form-select shadow-sm"
+              [value]="selectedFailureId()"
+              (change)="updateSelectedFailure($event)"
+              required
+            >
+              <option value="" disabled>Echec</option>
               @for (failure of failures(); track failure.id) {
                 <option [value]="failure.id">{{ failure.name }} — {{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</option>
               }
             </select>
           </div>
         </div>
-        <button type="submit" [disabled]="players().length === 0 || failures().length === 0">Ajouter</button>
+        <button
+          type="submit"
+          class="btn btn-primary shadow-sm"
+          [disabled]="players().length === 0 || failures().length === 0"
+        >
+          Ajouter
+        </button>
       </form>
 
 
@@ -79,15 +92,27 @@
                   <span>{{ entry.failureAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
                   <time [attr.datetime]="entry.createdAt">{{ entry.createdAt | date: 'dd/MM/yyyy à HH:mm' : undefined : 'fr-FR' }}</time>
                 </div>
+                @if (!entry.paid) {
+                  <button
+                    type="button"
+                    class="payment-status payment-status--unpaid"
+                    [attr.aria-label]="'Marquer l’entrée de ' + entry.playerName + ' comme payée'"
+                    (click)="requestBalanceEntryPayment(entry.id)"
+                  >
+                    <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
+                  </button>
+                } @else {
+                  <span class="payment-status payment-status--paid" role="img" aria-label="Payée">
+                    <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
+                  </span>
+                }
                 <button
                   type="button"
                   class="delete-button"
                   [attr.aria-label]="'Supprimer l’entrée de ' + entry.playerName"
                   (click)="requestBalanceEntryDeletion(entry.id)"
                 >
-                  <svg aria-hidden="true" viewBox="0 0 24 24">
-                    <path d="M4 7h16M10 11v6M14 11v6M9 7l1-3h4l1 3M6 7l1 13h10l1-13" />
-                  </svg>
+                  <i class="bi bi-trash-fill delete-icon" aria-hidden="true"></i>
                 </button>
               </div>
             </li>
@@ -97,18 +122,18 @@
     </section>
   } @else if (activeTab() === 'settings') {
     <section class="settings" aria-labelledby="settings-heading">
-      <h1 id="settings-heading">Paramétrage</h1>
 
       <section aria-labelledby="players-heading">
-        <h2 id="players-heading">Joueurs</h2>
 
         <form (submit)="addPlayer(); $event.preventDefault()">
           <div class="player-form-fields">
             <div>
-              <label for="player-name">Prénom ou surnom</label>
+              <label class="visually-hidden" for="player-name">Prénom ou surnom</label>
               <input
                 id="player-name"
+                class="form-control shadow-sm"
                 type="text"
+                placeholder="Prénom, surnom,..."
                 maxlength="100"
                 autocomplete="name"
                 [value]="playerName()"
@@ -117,10 +142,10 @@
               >
             </div>
           </div>
-          <button type="submit">Ajouter le joueur</button>
+          <button type="submit" class="btn btn-primary shadow-sm">Ajouter</button>
         </form>
 
-        <h3>Joueurs enregistrés</h3>
+
         @if (players().length === 0) {
           <p>Aucun joueur enregistré.</p>
         } @else {
@@ -128,6 +153,14 @@
             @for (player of players(); track player.id) {
               <li>
                 <span>{{ player.name }}</span>
+                <button
+                  type="button"
+                  class="delete-button"
+                  [attr.aria-label]="'Supprimer le joueur ' + player.name"
+                  (click)="requestPlayerDeletion(player.id)"
+                >
+                  <i class="bi bi-trash-fill delete-icon" aria-hidden="true"></i>
+                </button>
               </li>
             }
           </ul>
@@ -135,15 +168,17 @@
       </section>
 
       <section aria-labelledby="failures-heading">
-        <h2 id="failures-heading">Échecs</h2>
+
 
         <form (submit)="addFailure(); $event.preventDefault()">
           <div class="failure-form-fields">
             <div>
-              <label for="failure-name">Échec</label>
+              <label class="visually-hidden" for="failure-name">Échec</label>
               <input
                 id="failure-name"
+                class="form-control shadow-sm"
                 type="text"
+                placeholder="Échec"
                 maxlength="100"
                 [value]="failureName()"
                 (input)="updateFailureName($event)"
@@ -151,10 +186,12 @@
               >
             </div>
             <div>
-              <label for="failure-amount">Valeur (€)</label>
+              <label class="visually-hidden" for="failure-amount">Valeur en euros</label>
               <input
                 id="failure-amount"
+                class="form-control shadow-sm"
                 type="number"
+                placeholder="€"
                 min="0.01"
                 step="0.01"
                 inputmode="decimal"
@@ -164,10 +201,9 @@
               >
             </div>
           </div>
-          <button type="submit">Ajouter l’échec</button>
+          <button type="submit" class="btn btn-primary shadow-sm">Ajouter</button>
         </form>
 
-        <h3>Échecs enregistrés</h3>
         @if (failures().length === 0) {
           <p>Aucun échec enregistré.</p>
         } @else {
@@ -175,7 +211,17 @@
             @for (failure of failures(); track failure.id) {
               <li>
                 <span>{{ failure.name }}</span>
-                <span class="failure-amount">{{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                <div class="failure-actions">
+                  <span class="failure-amount">{{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                  <button
+                    type="button"
+                    class="delete-button"
+                    [attr.aria-label]="'Supprimer l’échec ' + failure.name"
+                    (click)="requestFailureDeletion(failure.id)"
+                  >
+                    <i class="bi bi-trash-fill delete-icon" aria-hidden="true"></i>
+                  </button>
+                </div>
               </li>
             }
           </ul>
@@ -183,8 +229,27 @@
       </section>
     </section>
   } @else {
-    <section class="empty-tab">
-      <h1>Podium</h1>
+    <section class="podium" aria-labelledby="podium-heading">
+      <p class="podium-grand-total">
+        <strong>{{ podiumTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</strong>
+      </p>
+
+      @if (podiumPlayers().length === 0) {
+        <p>Aucun joueur enregistré.</p>
+      } @else {
+        <ol class="podium-list">
+          @for (player of podiumPlayers(); track player.id) {
+            <li>
+              <span class="podium-rank" aria-hidden="true">{{ $index + 1 }}</span>
+              <strong>{{ player.name }}</strong>
+              <div class="podium-totals">
+                <span class="podium-total">{{ player.total | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                <span class="podium-unpaid-total">À payer : {{ player.unpaidTotal | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+              </div>
+            </li>
+          }
+        </ol>
+      }
     </section>
   }
 
@@ -200,12 +265,21 @@
         <h2 id="password-modal-heading">Accès protégé</h2>
         @if (balanceEntryIdPendingDeletion !== null) {
           <p class="password-hint">Saisissez le mot de passe pour supprimer cette entrée.</p>
+        } @else if (balanceEntryIdPendingPayment !== null) {
+          <p class="password-hint">Saisissez le mot de passe pour marquer cette entrée comme payée.</p>
+        } @else if (playerIdPendingDeletion !== null) {
+          <p class="password-hint">La suppression du joueur effacera aussi ses entrées du journal.</p>
+        } @else if (failureIdPendingDeletion !== null) {
+          <p class="password-hint">La suppression de l’échec effacera aussi ses entrées du journal.</p>
         }
         <form (submit)="verifyPassword(); $event.preventDefault()">
-          <label for="access-password">Mot de passe</label>
+          <label class="visually-hidden" for="access-password">Mot de passe</label>
           <input
             id="access-password"
+            class="form-control shadow-sm"
+            [class.is-invalid]="passwordError()"
             type="password"
+            placeholder="Mot de passe"
             autocomplete="current-password"
             [value]="password()"
             (input)="updatePassword($event)"
@@ -213,11 +287,11 @@
             required
           >
           @if (passwordError()) {
-            <p class="password-error">Mot de passe incorrect.</p>
+            <p class="invalid-feedback d-block">Mot de passe incorrect.</p>
           }
           <div class="modal-actions">
-            <button type="button" (click)="closePasswordModal()">Annuler</button>
-            <button type="submit">Valider</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="closePasswordModal()">Annuler</button>
+            <button type="submit" class="btn btn-primary">Valider</button>
           </div>
         </form>
       </section>

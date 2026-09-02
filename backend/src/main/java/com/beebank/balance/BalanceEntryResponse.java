@@ -10,6 +10,7 @@ record BalanceEntryResponse(
         Long failureId,
         String failureName,
         BigDecimal failureAmount,
+        boolean paid,
         Instant createdAt
 ) {
 
@@ -21,6 +22,7 @@ record BalanceEntryResponse(
                 entry.getFailure().getId(),
                 entry.getFailure().getName(),
                 entry.getFailure().getAmount(),
+                entry.isPaid(),
                 entry.getCreatedAt()
         );
     }

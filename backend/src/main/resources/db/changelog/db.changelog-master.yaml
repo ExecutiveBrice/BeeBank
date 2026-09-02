@@ -13,3 +13,9 @@ databaseChangeLog:
       file: db/changelog/changes/007-create-balance-entry.yaml
   - include:
       file: db/changelog/changes/008-unique-player-name.yaml
+  - include:
+      file: db/changelog/changes/009-unique-failure-name.yaml
+  - include:
+      file: db/changelog/changes/010-cascade-balance-entry-deletions.yaml
+  - include:
+      file: db/changelog/changes/011-add-paid-to-balance-entry.yaml

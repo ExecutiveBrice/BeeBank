@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PlayerApiService } from './player-api.service';
@@ -11,6 +11,13 @@ import { BalanceEntry } from './balance-entry';
 
 type Tab = 'balance' | 'podium' | 'settings';
 type ProtectedTab = 'settings';
+
+interface PodiumPlayer {
+  id: number;
+  name: string;
+  total: number;
+  unpaidTotal: number;
+}
 
 @Component({
   selector: 'app-root',
@@ -31,9 +38,37 @@ export class AppComponent {
   protected readonly failureName = signal('');
   protected readonly failureAmount = signal('');
   protected readonly balanceEntries = signal<BalanceEntry[]>([]);
+  protected readonly podiumPlayers = computed<PodiumPlayer[]>(() => {
+    const totalsInCents = new Map<number, number>();
+    const unpaidTotalsInCents = new Map<number, number>();
+
+    for (const entry of this.balanceEntries()) {
+      const amountInCents = Math.round(Number(entry.failureAmount) * 100);
+      totalsInCents.set(entry.playerId, (totalsInCents.get(entry.playerId) ?? 0) + amountInCents);
+      if (!entry.paid) {
+        unpaidTotalsInCents.set(entry.playerId, (unpaidTotalsInCents.get(entry.playerId) ?? 0) + amountInCents);
+      }
+    }
+
+    return this.players()
+      .map((player) => ({
+        ...player,
+        total: (totalsInCents.get(player.id) ?? 0) / 100,
+        unpaidTotal: (unpaidTotalsInCents.get(player.id) ?? 0) / 100
+      }))
+      .sort((first, second) => second.total - first.total || first.name.localeCompare(second.name, 'fr'));
+  });
+  protected readonly podiumTotal = computed(() => {
+    const totalInCents = this.balanceEntries().reduce(
+      (total, entry) => total + Math.round(Number(entry.failureAmount) * 100),
+      0
+    );
+
+    return totalInCents / 100;
+  });
   protected readonly selectedPlayerId = signal('');
   protected readonly selectedFailureId = signal('');
-  protected readonly activeTab = signal<Tab>('balance');
+  protected readonly activeTab = signal<Tab>('podium');
   protected readonly passwordModalOpen = signal(false);
   protected readonly password = signal('');
   protected readonly passwordError = signal(false);
@@ -41,6 +76,9 @@ export class AppComponent {
   private protectedTab: ProtectedTab | null = null;
   private toastTimeout: ReturnType<typeof setTimeout> | null = null;
   protected balanceEntryIdPendingDeletion: number | null = null;
+  protected balanceEntryIdPendingPayment: number | null = null;
+  protected playerIdPendingDeletion: number | null = null;
+  protected failureIdPendingDeletion: number | null = null;
 
   constructor() {
     this.loadPlayers();
@@ -99,10 +137,22 @@ export class AppComponent {
       return;
     }
 
-    this.failureApi.create(name, amount).subscribe((failure) => {
-      this.failures.update((failures) => [...failures, failure].sort((first, second) => first.name.localeCompare(second.name)));
-      this.failureName.set('');
-      this.failureAmount.set('');
+    if (this.failures().some((failure) => failure.name.localeCompare(name, 'fr', { sensitivity: 'accent' }) === 0)) {
+      this.showToast('Ce nom d’échec est déjà utilisé.');
+      return;
+    }
+
+    this.failureApi.create(name, amount).subscribe({
+      next: (failure) => {
+        this.failures.update((failures) => [...failures, failure].sort((first, second) => first.name.localeCompare(second.name)));
+        this.failureName.set('');
+        this.failureAmount.set('');
+      },
+      error: (error: HttpErrorResponse) => {
+        if (error.status === 409) {
+          this.showToast('Ce nom d’échec est déjà utilisé.');
+        }
+      }
     });
   }
 
@@ -129,7 +179,32 @@ export class AppComponent {
   }
 
   protected requestBalanceEntryDeletion(id: number): void {
+    this.clearPendingDeletions();
     this.balanceEntryIdPendingDeletion = id;
+    this.password.set('');
+    this.passwordError.set(false);
+    this.passwordModalOpen.set(true);
+  }
+
+  protected requestBalanceEntryPayment(id: number): void {
+    this.clearPendingDeletions();
+    this.balanceEntryIdPendingPayment = id;
+    this.password.set('');
+    this.passwordError.set(false);
+    this.passwordModalOpen.set(true);
+  }
+
+  protected requestPlayerDeletion(id: number): void {
+    this.clearPendingDeletions();
+    this.playerIdPendingDeletion = id;
+    this.password.set('');
+    this.passwordError.set(false);
+    this.passwordModalOpen.set(true);
+  }
+
+  protected requestFailureDeletion(id: number): void {
+    this.clearPendingDeletions();
+    this.failureIdPendingDeletion = id;
     this.password.set('');
     this.passwordError.set(false);
     this.passwordModalOpen.set(true);
@@ -142,7 +217,7 @@ export class AppComponent {
 
   protected verifyPassword(): void {
     const password = this.password();
-    if (!password || (!this.protectedTab && this.balanceEntryIdPendingDeletion === null)) {
+    if (!password || (!this.protectedTab && !this.hasPendingAction())) {
       return;
     }
 
@@ -157,6 +232,21 @@ export class AppComponent {
         return;
       }
 
+      if (this.balanceEntryIdPendingPayment !== null) {
+        this.markBalanceEntryAsPaid(this.balanceEntryIdPendingPayment, password);
+        return;
+      }
+
+      if (this.playerIdPendingDeletion !== null) {
+        this.deletePlayer(this.playerIdPendingDeletion, password);
+        return;
+      }
+
+      if (this.failureIdPendingDeletion !== null) {
+        this.deleteFailure(this.failureIdPendingDeletion, password);
+        return;
+      }
+
       this.activeTab.set(this.protectedTab!);
       this.protectedTab = null;
       this.password.set('');
@@ -166,7 +256,7 @@ export class AppComponent {
 
   protected closePasswordModal(): void {
     this.protectedTab = null;
-    this.balanceEntryIdPendingDeletion = null;
+    this.clearPendingDeletions();
     this.password.set('');
     this.passwordError.set(false);
     this.passwordModalOpen.set(false);
@@ -200,7 +290,7 @@ export class AppComponent {
     this.balanceEntryApi.delete(id, password).subscribe({
       next: () => {
         this.balanceEntries.update((entries) => entries.filter((entry) => entry.id !== id));
-        this.balanceEntryIdPendingDeletion = null;
+        this.clearPendingDeletions();
         this.password.set('');
         this.passwordModalOpen.set(false);
       },
@@ -208,6 +298,70 @@ export class AppComponent {
         this.passwordError.set(true);
       }
     });
+  }
+
+  private markBalanceEntryAsPaid(id: number, password: string): void {
+    this.balanceEntryApi.markAsPaid(id, password).subscribe({
+      next: (updatedEntry) => {
+        this.balanceEntries.update((entries) => entries.map((entry) => entry.id === id ? updatedEntry : entry));
+        this.finishDeletion();
+      },
+      error: () => {
+        this.passwordError.set(true);
+      }
+    });
+  }
+
+  private deletePlayer(id: number, password: string): void {
+    this.playerApi.delete(id, password).subscribe({
+      next: () => {
+        this.players.update((players) => players.filter((player) => player.id !== id));
+        this.balanceEntries.update((entries) => entries.filter((entry) => entry.playerId !== id));
+        if (this.selectedPlayerId() === String(id)) {
+          this.selectedPlayerId.set('');
+        }
+        this.finishDeletion();
+      },
+      error: () => {
+        this.passwordError.set(true);
+      }
+    });
+  }
+
+  private deleteFailure(id: number, password: string): void {
+    this.failureApi.delete(id, password).subscribe({
+      next: () => {
+        this.failures.update((failures) => failures.filter((failure) => failure.id !== id));
+        this.balanceEntries.update((entries) => entries.filter((entry) => entry.failureId !== id));
+        if (this.selectedFailureId() === String(id)) {
+          this.selectedFailureId.set('');
+        }
+        this.finishDeletion();
+      },
+      error: () => {
+        this.passwordError.set(true);
+      }
+    });
+  }
+
+  private finishDeletion(): void {
+    this.clearPendingDeletions();
+    this.password.set('');
+    this.passwordModalOpen.set(false);
+  }
+
+  private clearPendingDeletions(): void {
+    this.balanceEntryIdPendingDeletion = null;
+    this.balanceEntryIdPendingPayment = null;
+    this.playerIdPendingDeletion = null;
+    this.failureIdPendingDeletion = null;
+  }
+
+  private hasPendingAction(): boolean {
+    return this.balanceEntryIdPendingDeletion !== null
+      || this.balanceEntryIdPendingPayment !== null
+      || this.playerIdPendingDeletion !== null
+      || this.failureIdPendingDeletion !== null;
   }
 
   private isProtectedTab(tab: Tab): tab is ProtectedTab {

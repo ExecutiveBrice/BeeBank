@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-add-paid-to-balance-entry
+      author: beebank
+      changes:
+        - addColumn:
+            tableName: balance_entry
+            columns:
+              - column:
+                  name: paid
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

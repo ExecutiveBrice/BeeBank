@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-unique-failure-name
+      author: beebank
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: CREATE UNIQUE INDEX uk_failure_name_normalized ON failure (LOWER(BTRIM(name)))

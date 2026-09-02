@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-cascade-balance-entry-deletions
+      author: beebank
+      changes:
+        - dropForeignKeyConstraint:
+            baseTableName: balance_entry
+            constraintName: fk_balance_entry_player
+        - addForeignKeyConstraint:
+            baseTableName: balance_entry
+            baseColumnNames: player_id
+            referencedTableName: player
+            referencedColumnNames: id
+            constraintName: fk_balance_entry_player
+            onDelete: CASCADE
+        - dropForeignKeyConstraint:
+            baseTableName: balance_entry
+            constraintName: fk_balance_entry_failure
+        - addForeignKeyConstraint:
+            baseTableName: balance_entry
+            baseColumnNames: failure_id
+            referencedTableName: failure
+            referencedColumnNames: id
+            constraintName: fk_balance_entry_failure
+            onDelete: CASCADE

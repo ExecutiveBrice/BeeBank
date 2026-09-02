@@ -5,5 +5,6 @@ export interface BalanceEntry {
   failureId: number;
   failureName: string;
   failureAmount: number;
+  paid: boolean;
   createdAt: string;
 }

@@ -30,6 +30,9 @@ public class BalanceEntry {
     @JoinColumn(name = "failure_id", nullable = false)
     private Failure failure;
 
+    @Column(nullable = false)
+    private boolean paid = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -56,6 +59,14 @@ public class BalanceEntry {
 
     public Failure getFailure() {
         return failure;
+    }
+
+    public boolean isPaid() {
+        return paid;
+    }
+
+    public void markAsPaid() {
+        paid = true;
     }
 
     public Instant getCreatedAt() {

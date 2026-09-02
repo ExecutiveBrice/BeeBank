@@ -5,12 +5,14 @@ import com.beebank.failure.FailureRepository;
 import com.beebank.player.Player;
 import com.beebank.player.PlayerRepository;
 import jakarta.validation.Valid;
+import jakarta.transaction.Transactional;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -60,6 +62,23 @@ public class BalanceEntryController {
         return ResponseEntity
                 .created(URI.create("/api/balance-entries/" + savedEntry.getId()))
                 .body(BalanceEntryResponse.from(savedEntry));
+    }
+
+    @PatchMapping("/{id}/paid")
+    @Transactional
+    ResponseEntity<BalanceEntryResponse> markAsPaid(
+            @PathVariable Long id,
+            @RequestHeader("X-Access-Password") String password
+    ) {
+        if (!accessPassword.equals(password)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        BalanceEntry entry = balanceEntryRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Entrée introuvable."));
+        entry.markAsPaid();
+        BalanceEntry savedEntry = balanceEntryRepository.save(entry);
+        return ResponseEntity.ok(BalanceEntryResponse.from(savedEntry));
     }
 
     @DeleteMapping("/{id}")

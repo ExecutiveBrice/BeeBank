@@ -16,4 +16,10 @@ export class FailureApiService {
   create(name: string, amount: number): Observable<Failure> {
     return this.http.post<Failure>(this.endpoint, { name, amount });
   }
+
+  delete(id: number, password: string): Observable<void> {
+    return this.http.delete<void>(`${this.endpoint}/${id}`, {
+      headers: { 'X-Access-Password': password }
+    });
+  }
 }
