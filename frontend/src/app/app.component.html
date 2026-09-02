@@ -54,8 +54,64 @@
   </nav>
 
   @if (activeTab() === 'balance') {
-    <section class="empty-tab" aria-labelledby="balance-heading">
+    <section class="balance" aria-labelledby="balance-heading">
       <h1 id="balance-heading">Balance</h1>
+
+      <form (submit)="addBalanceEntry(); $event.preventDefault()">
+        <div class="balance-form-fields">
+          <div>
+            <label for="balance-player">Joueur</label>
+            <select id="balance-player" [value]="selectedPlayerId()" (change)="updateSelectedPlayer($event)" required>
+              <option value="" disabled>Choisir un joueur</option>
+              @for (player of players(); track player.id) {
+                <option [value]="player.id">{{ player.name }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label for="balance-failure">Échec</label>
+            <select id="balance-failure" [value]="selectedFailureId()" (change)="updateSelectedFailure($event)" required>
+              <option value="" disabled>Choisir un échec</option>
+              @for (failure of failures(); track failure.id) {
+                <option [value]="failure.id">{{ failure.name }} — {{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <button type="submit" [disabled]="players().length === 0 || failures().length === 0">Ajouter au journal</button>
+      </form>
+
+      <h2>Journal</h2>
+      @if (balanceEntries().length === 0) {
+        <p>Aucune entrée dans le journal.</p>
+      } @else {
+        <ul class="balance-entries-list">
+          @for (entry of balanceEntries(); track entry.id) {
+            <li>
+              <div>
+                <strong>{{ entry.playerName }}</strong>
+                <span> — {{ entry.failureName }}</span>
+              </div>
+              <div class="balance-entry-actions">
+                <div class="balance-entry-details">
+                  <span>{{ entry.failureAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                  <time [attr.datetime]="entry.createdAt">{{ entry.createdAt | date: 'dd/MM/yyyy à HH:mm' : undefined : 'fr-FR' }}</time>
+                </div>
+                <button
+                  type="button"
+                  class="delete-button"
+                  [attr.aria-label]="'Supprimer l’entrée de ' + entry.playerName"
+                  (click)="requestBalanceEntryDeletion(entry.id)"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M4 7h16M10 11v6M14 11v6M9 7l1-3h4l1 3M6 7l1 13h10l1-13" />
+                  </svg>
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
     </section>
   } @else if (activeTab() === 'players') {
     <section class="players" aria-labelledby="players-heading">
@@ -156,6 +212,9 @@
         (click)="$event.stopPropagation()"
       >
         <h2 id="password-modal-heading">Accès protégé</h2>
+        @if (balanceEntryIdPendingDeletion !== null) {
+          <p class="password-hint">Saisissez le mot de passe pour supprimer cette entrée.</p>
+        }
         <form (submit)="verifyPassword(); $event.preventDefault()">
           <label for="access-password">Mot de passe</label>
           <input
