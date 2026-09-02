@@ -11,3 +11,5 @@ databaseChangeLog:
       file: db/changelog/changes/006-drop-access-password.yaml
   - include:
       file: db/changelog/changes/007-create-balance-entry.yaml
+  - include:
+      file: db/changelog/changes/008-unique-player-name.yaml

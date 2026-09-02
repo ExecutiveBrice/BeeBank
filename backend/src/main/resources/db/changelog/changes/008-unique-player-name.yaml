@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-unique-player-name
+      author: beebank
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: CREATE UNIQUE INDEX uk_player_name_normalized ON player (LOWER(BTRIM(name)))

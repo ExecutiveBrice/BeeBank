@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { PlayerApiService } from './player-api.service';
 import { Player } from './player';
 import { FailureApiService } from './failure-api.service';
@@ -8,8 +9,8 @@ import { AccessApiService } from './access-api.service';
 import { BalanceEntryApiService } from './balance-entry-api.service';
 import { BalanceEntry } from './balance-entry';
 
-type Tab = 'balance' | 'podium' | 'players' | 'settings';
-type ProtectedTab = 'players' | 'settings';
+type Tab = 'balance' | 'podium' | 'settings';
+type ProtectedTab = 'settings';
 
 @Component({
   selector: 'app-root',
@@ -36,7 +37,9 @@ export class AppComponent {
   protected readonly passwordModalOpen = signal(false);
   protected readonly password = signal('');
   protected readonly passwordError = signal(false);
+  protected readonly toastMessage = signal('');
   private protectedTab: ProtectedTab | null = null;
+  private toastTimeout: ReturnType<typeof setTimeout> | null = null;
   protected balanceEntryIdPendingDeletion: number | null = null;
 
   constructor() {
@@ -55,10 +58,30 @@ export class AppComponent {
       return;
     }
 
-    this.playerApi.create(name).subscribe((player) => {
-      this.players.update((players) => [...players, player].sort((first, second) => first.name.localeCompare(second.name)));
-      this.playerName.set('');
+    if (this.players().some((player) => player.name.localeCompare(name, 'fr', { sensitivity: 'accent' }) === 0)) {
+      this.showToast('Ce prénom est déjà utilisé.');
+      return;
+    }
+
+    this.playerApi.create(name).subscribe({
+      next: (player) => {
+        this.players.update((players) => [...players, player].sort((first, second) => first.name.localeCompare(second.name)));
+        this.playerName.set('');
+      },
+      error: (error: HttpErrorResponse) => {
+        if (error.status === 409) {
+          this.showToast('Ce prénom est déjà utilisé.');
+        }
+      }
     });
+  }
+
+  protected closeToast(): void {
+    if (this.toastTimeout !== null) {
+      clearTimeout(this.toastTimeout);
+      this.toastTimeout = null;
+    }
+    this.toastMessage.set('');
   }
 
   protected updateFailureName(event: Event): void {
@@ -188,6 +211,12 @@ export class AppComponent {
   }
 
   private isProtectedTab(tab: Tab): tab is ProtectedTab {
-    return tab === 'players' || tab === 'settings';
+    return tab === 'settings';
+  }
+
+  private showToast(message: string): void {
+    this.closeToast();
+    this.toastMessage.set(message);
+    this.toastTimeout = setTimeout(() => this.closeToast(), 5000);
   }
 }

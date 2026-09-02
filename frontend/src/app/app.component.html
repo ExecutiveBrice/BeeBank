@@ -27,20 +27,6 @@
     <button
       type="button"
       class="tab"
-      [class.tab--active]="activeTab() === 'players'"
-      [attr.aria-selected]="activeTab() === 'players'"
-      (click)="selectTab('players')"
-    >
-      <svg aria-hidden="true" viewBox="0 0 24 24">
-        <circle cx="9" cy="8" r="3" />
-        <circle cx="17" cy="9" r="2" />
-        <path d="M3 20a6 6 0 0 1 12 0M15 14.5a5 5 0 0 1 5 5.5" />
-      </svg>
-      <span>Joueurs</span>
-    </button>
-    <button
-      type="button"
-      class="tab"
       [class.tab--active]="activeTab() === 'settings'"
       [attr.aria-selected]="activeTab() === 'settings'"
       (click)="selectTab('settings')"
@@ -55,12 +41,9 @@
 
   @if (activeTab() === 'balance') {
     <section class="balance" aria-labelledby="balance-heading">
-      <h1 id="balance-heading">Balance</h1>
-
       <form (submit)="addBalanceEntry(); $event.preventDefault()">
         <div class="balance-form-fields">
           <div>
-            <label for="balance-player">Joueur</label>
             <select id="balance-player" [value]="selectedPlayerId()" (change)="updateSelectedPlayer($event)" required>
               <option value="" disabled>Choisir un joueur</option>
               @for (player of players(); track player.id) {
@@ -69,7 +52,6 @@
             </select>
           </div>
           <div>
-            <label for="balance-failure">Échec</label>
             <select id="balance-failure" [value]="selectedFailureId()" (change)="updateSelectedFailure($event)" required>
               <option value="" disabled>Choisir un échec</option>
               @for (failure of failures(); track failure.id) {
@@ -78,12 +60,12 @@
             </select>
           </div>
         </div>
-        <button type="submit" [disabled]="players().length === 0 || failures().length === 0">Ajouter au journal</button>
+        <button type="submit" [disabled]="players().length === 0 || failures().length === 0">Ajouter</button>
       </form>
 
-      <h2>Journal</h2>
+
       @if (balanceEntries().length === 0) {
-        <p>Aucune entrée dans le journal.</p>
+        <p>Aucune entrée</p>
       } @else {
         <ul class="balance-entries-list">
           @for (entry of balanceEntries(); track entry.id) {
@@ -113,88 +95,92 @@
         </ul>
       }
     </section>
-  } @else if (activeTab() === 'players') {
-    <section class="players" aria-labelledby="players-heading">
-      <h1 id="players-heading">Joueurs</h1>
-
-      <form (submit)="addPlayer(); $event.preventDefault()">
-        <div class="player-form-fields">
-          <div>
-            <label for="player-name">Prénom ou surnom</label>
-            <input
-              id="player-name"
-              type="text"
-              maxlength="100"
-              autocomplete="name"
-              [value]="playerName()"
-              (input)="updatePlayerName($event)"
-              required
-            >
-          </div>
-        </div>
-        <button type="submit">Ajouter le joueur</button>
-      </form>
-
-      <h2>Joueurs enregistrés</h2>
-      @if (players().length === 0) {
-        <p>Aucun joueur enregistré.</p>
-      } @else {
-        <ul class="players-list">
-          @for (player of players(); track player.id) {
-            <li>
-              <span>{{ player.name }}</span>
-            </li>
-          }
-        </ul>
-      }
-    </section>
   } @else if (activeTab() === 'settings') {
     <section class="settings" aria-labelledby="settings-heading">
       <h1 id="settings-heading">Paramétrage</h1>
 
-      <form (submit)="addFailure(); $event.preventDefault()">
-        <div class="failure-form-fields">
-          <div>
-            <label for="failure-name">Échec</label>
-            <input
-              id="failure-name"
-              type="text"
-              maxlength="100"
-              [value]="failureName()"
-              (input)="updateFailureName($event)"
-              required
-            >
-          </div>
-          <div>
-            <label for="failure-amount">Valeur (€)</label>
-            <input
-              id="failure-amount"
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputmode="decimal"
-              [value]="failureAmount()"
-              (input)="updateFailureAmount($event)"
-              required
-            >
-          </div>
-        </div>
-        <button type="submit">Ajouter l’échec</button>
-      </form>
+      <section aria-labelledby="players-heading">
+        <h2 id="players-heading">Joueurs</h2>
 
-      <h2>Échecs enregistrés</h2>
-      @if (failures().length === 0) {
-        <p>Aucun échec enregistré.</p>
-      } @else {
-        <ul class="failures-list">
-          @for (failure of failures(); track failure.id) {
-            <li>
-              <span>{{ failure.name }}</span>
-              <span class="failure-amount">{{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
-            </li>
-          }
-        </ul>
-      }
+        <form (submit)="addPlayer(); $event.preventDefault()">
+          <div class="player-form-fields">
+            <div>
+              <label for="player-name">Prénom ou surnom</label>
+              <input
+                id="player-name"
+                type="text"
+                maxlength="100"
+                autocomplete="name"
+                [value]="playerName()"
+                (input)="updatePlayerName($event)"
+                required
+              >
+            </div>
+          </div>
+          <button type="submit">Ajouter le joueur</button>
+        </form>
+
+        <h3>Joueurs enregistrés</h3>
+        @if (players().length === 0) {
+          <p>Aucun joueur enregistré.</p>
+        } @else {
+          <ul class="players-list">
+            @for (player of players(); track player.id) {
+              <li>
+                <span>{{ player.name }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section aria-labelledby="failures-heading">
+        <h2 id="failures-heading">Échecs</h2>
+
+        <form (submit)="addFailure(); $event.preventDefault()">
+          <div class="failure-form-fields">
+            <div>
+              <label for="failure-name">Échec</label>
+              <input
+                id="failure-name"
+                type="text"
+                maxlength="100"
+                [value]="failureName()"
+                (input)="updateFailureName($event)"
+                required
+              >
+            </div>
+            <div>
+              <label for="failure-amount">Valeur (€)</label>
+              <input
+                id="failure-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputmode="decimal"
+                [value]="failureAmount()"
+                (input)="updateFailureAmount($event)"
+                required
+              >
+            </div>
+          </div>
+          <button type="submit">Ajouter l’échec</button>
+        </form>
+
+        <h3>Échecs enregistrés</h3>
+        @if (failures().length === 0) {
+          <p>Aucun échec enregistré.</p>
+        } @else {
+          <ul class="failures-list">
+            @for (failure of failures(); track failure.id) {
+              <li>
+                <span>{{ failure.name }}</span>
+                <span class="failure-amount">{{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
     </section>
   } @else {
     <section class="empty-tab">
@@ -235,6 +221,13 @@
           </div>
         </form>
       </section>
+    </div>
+  }
+
+  @if (toastMessage()) {
+    <div class="toast" role="alert" aria-live="assertive">
+      <span>{{ toastMessage() }}</span>
+      <button type="button" aria-label="Fermer la notification" (click)="closeToast()">×</button>
     </div>
   }
 </main>

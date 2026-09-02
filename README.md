@@ -52,7 +52,7 @@ Liquibase crée et met à jour le schéma. Hibernate le valide uniquement.
    | `DB_URL` | URL JDBC Neon avec `sslmode=require` |
    | `DB_USERNAME` | utilisateur Neon |
    | `DB_PASSWORD` | mot de passe Neon |
-   | `ACCESS_PASSWORD` | mot de passe des onglets Joueurs et Paramétrage |
+   | `ACCESS_PASSWORD` | mot de passe de l'onglet Paramétrage |
    | `FRONTEND_URL` | origine du site Angular, par exemple `https://mon-frontend.onrender.com` |
 
 Le conteneur utilise automatiquement le port `PORT` fourni par Render. Liquibase applique les migrations non exécutées et Hibernate valide uniquement le schéma ; aucune donnée n'est supprimée ou recréée. Le pool de production est limité à deux connexions.
