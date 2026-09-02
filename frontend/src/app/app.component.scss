@@ -4,6 +4,48 @@ main {
   padding: 0 1rem;
 }
 
+.tabs {
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 2rem;
+}
+
+.tab {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: #666;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.tab:hover,
+.tab:focus-visible {
+  background: #f6f6f6;
+  color: #111;
+  outline: none;
+}
+
+.tab--active {
+  border-bottom-color: #111;
+  color: #111;
+  font-weight: 700;
+}
+
+.tab svg {
+  fill: none;
+  height: 1.25rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  width: 1.25rem;
+}
+
 .form-row {
   display: flex;
   gap: 0.5rem;
@@ -34,4 +76,63 @@ p {
 time {
   color: #666;
   font-size: 0.875rem;
+}
+
+.empty-tab {
+  min-height: 12rem;
+}
+
+.players form {
+  display: grid;
+  gap: 1rem;
+}
+
+.player-form-fields {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.player-form-fields label,
+.player-form-fields input {
+  display: block;
+}
+
+.player-form-fields input {
+  box-sizing: border-box;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+h2 {
+  font-size: 1.125rem;
+  margin: 2rem 0 0.5rem;
+}
+
+.players-list li {
+  gap: 1rem;
+}
+
+.player-team {
+  color: #666;
+  text-align: right;
+}
+
+@media (max-width: 34rem) {
+  .tabs {
+    gap: 0;
+    justify-content: space-between;
+  }
+
+  .tab {
+    padding: 0.75rem 0.25rem;
+  }
+
+  .tab span {
+    display: none;
+  }
+
+  .player-form-fields {
+    grid-template-columns: 1fr;
+  }
 }

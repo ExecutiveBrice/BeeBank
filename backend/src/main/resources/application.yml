@@ -2,7 +2,7 @@ spring:
   application:
     name: beebank
   profiles:
-    default: prod
+    default: local
   jpa:
     hibernate:
       ddl-auto: validate
