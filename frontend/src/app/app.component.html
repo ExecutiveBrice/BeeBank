@@ -105,17 +105,6 @@
               required
             >
           </div>
-          <div>
-            <label for="player-team">Équipe</label>
-            <input
-              id="player-team"
-              type="text"
-              maxlength="100"
-              [value]="playerTeam()"
-              (input)="updatePlayerTeam($event)"
-              required
-            >
-          </div>
         </div>
         <button type="submit">Ajouter le joueur</button>
       </form>
@@ -128,7 +117,54 @@
           @for (player of players(); track player.id) {
             <li>
               <span>{{ player.name }}</span>
-              <span class="player-team">{{ player.team }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  } @else if (activeTab() === 'settings') {
+    <section class="settings" aria-labelledby="settings-heading">
+      <h1 id="settings-heading">Paramétrage</h1>
+
+      <form (submit)="addFailure(); $event.preventDefault()">
+        <div class="failure-form-fields">
+          <div>
+            <label for="failure-name">Échec</label>
+            <input
+              id="failure-name"
+              type="text"
+              maxlength="100"
+              [value]="failureName()"
+              (input)="updateFailureName($event)"
+              required
+            >
+          </div>
+          <div>
+            <label for="failure-amount">Valeur (€)</label>
+            <input
+              id="failure-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputmode="decimal"
+              [value]="failureAmount()"
+              (input)="updateFailureAmount($event)"
+              required
+            >
+          </div>
+        </div>
+        <button type="submit">Ajouter l’échec</button>
+      </form>
+
+      <h2>Échecs enregistrés</h2>
+      @if (failures().length === 0) {
+        <p>Aucun échec enregistré.</p>
+      } @else {
+        <ul class="failures-list">
+          @for (failure of failures(); track failure.id) {
+            <li>
+              <span>{{ failure.name }}</span>
+              <span class="failure-amount">{{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
             </li>
           }
         </ul>
@@ -136,7 +172,40 @@
     </section>
   } @else {
     <section class="empty-tab">
-      <h1>{{ activeTab() === 'podium' ? 'Podium' : activeTab() === 'players' ? 'Joueurs' : 'Paramétrage' }}</h1>
+      <h1>Podium</h1>
     </section>
+  }
+
+  @if (passwordModalOpen()) {
+    <div class="modal-backdrop" (click)="closePasswordModal()">
+      <section
+        class="password-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="password-modal-heading"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="password-modal-heading">Accès protégé</h2>
+        <form (submit)="verifyPassword(); $event.preventDefault()">
+          <label for="access-password">Mot de passe</label>
+          <input
+            id="access-password"
+            type="password"
+            autocomplete="current-password"
+            [value]="password()"
+            (input)="updatePassword($event)"
+            autofocus
+            required
+          >
+          @if (passwordError()) {
+            <p class="password-error">Mot de passe incorrect.</p>
+          }
+          <div class="modal-actions">
+            <button type="button" (click)="closePasswordModal()">Annuler</button>
+            <button type="submit">Valider</button>
+          </div>
+        </form>
+      </section>
+    </div>
   }
 </main>

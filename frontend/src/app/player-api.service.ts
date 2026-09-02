@@ -13,7 +13,7 @@ export class PlayerApiService {
     return this.http.get<Player[]>(this.endpoint);
   }
 
-  create(name: string, team: string): Observable<Player> {
-    return this.http.post<Player>(this.endpoint, { name, team });
+  create(name: string): Observable<Player> {
+    return this.http.post<Player>(this.endpoint, { name });
   }
 }

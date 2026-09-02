@@ -29,7 +29,7 @@ public class PlayerController {
 
     @PostMapping
     ResponseEntity<PlayerResponse> create(@Valid @RequestBody CreatePlayerRequest request) {
-        Player savedPlayer = playerRepository.save(new Player(request.name().trim(), request.team().trim()));
+        Player savedPlayer = playerRepository.save(new Player(request.name().trim()));
         return ResponseEntity
                 .created(URI.create("/api/players/" + savedPlayer.getId()))
                 .body(PlayerResponse.from(savedPlayer));
