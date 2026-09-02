@@ -52,6 +52,7 @@ Liquibase crée et met à jour le schéma. Hibernate le valide uniquement.
    | `DB_URL` | URL JDBC Neon avec `sslmode=require` |
    | `DB_USERNAME` | utilisateur Neon |
    | `DB_PASSWORD` | mot de passe Neon |
+   | `ACCESS_PASSWORD` | mot de passe des onglets Joueurs et Paramétrage |
    | `FRONTEND_URL` | origine du site Angular, par exemple `https://mon-frontend.onrender.com` |
 
 Le conteneur utilise automatiquement le port `PORT` fourni par Render. Liquibase applique les migrations non exécutées et Hibernate valide uniquement le schéma ; aucune donnée n'est supprimée ou recréée. Le pool de production est limité à deux connexions.
@@ -64,7 +65,7 @@ Le conteneur utilise automatiquement le port `PORT` fourni par Render. Liquibase
 4. Ajoutez la variable de build `API_URL` avec l'URL publique du Web Service Render, sans `/api` final, par exemple `https://mon-backend.onrender.com`.
 5. Une fois l'URL publique du Static Site connue, reportez-la dans `FRONTEND_URL` du Web Service, puis redéployez le backend.
 
-Lors du build de production, `API_URL` construit la configuration du frontend. Sans cette variable, le frontend utilise `/api`, ce qui conserve le proxy Angular en local. Aucun secret n'est stocké dans ce dépôt.
+Lors du build de production, `API_URL` construit la configuration du frontend. Sans cette variable, le frontend utilise `/api`, ce qui conserve le proxy Angular en local. Configurez aussi `ACCESS_PASSWORD` dans l'environnement du backend, y compris en local avant de le démarrer. Aucun secret n'est stocké dans ce dépôt.
 
 ## Démarrer Angular
 
@@ -82,5 +83,4 @@ Le serveur Angular utilise `proxy.conf.json` : les appels vers `/api` sont redir
 
 - Frontend : [http://localhost:4200](http://localhost:4200)
 - Backend : [http://localhost:8080](http://localhost:8080)
-- API des messages : [http://localhost:8080/api/messages](http://localhost:8080/api/messages)
 - Actuator : [http://localhost:8080/actuator](http://localhost:8080/actuator)

@@ -6,4 +6,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/003-create-failure.yaml
   - include:
-      file: db/changelog/changes/004-create-access-password.yaml
+      file: db/changelog/changes/005-drop-message.yaml
+  - include:
+      file: db/changelog/changes/006-drop-access-password.yaml

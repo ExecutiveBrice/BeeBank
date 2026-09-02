@@ -1,7 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
-import { MessageApiService } from './message-api.service';
-import { Message } from './message';
+import { CurrencyPipe } from '@angular/common';
 import { PlayerApiService } from './player-api.service';
 import { Player } from './player';
 import { FailureApiService } from './failure-api.service';
@@ -13,19 +11,16 @@ type ProtectedTab = 'players' | 'settings';
 
 @Component({
   selector: 'app-root',
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
-  private readonly messageApi = inject(MessageApiService);
   private readonly playerApi = inject(PlayerApiService);
   private readonly failureApi = inject(FailureApiService);
   private readonly accessApi = inject(AccessApiService);
 
-  protected readonly messages = signal<Message[]>([]);
-  protected readonly text = signal('');
   protected readonly players = signal<Player[]>([]);
   protected readonly playerName = signal('');
   protected readonly failures = signal<Failure[]>([]);
@@ -38,31 +33,8 @@ export class AppComponent {
   private protectedTab: ProtectedTab | null = null;
 
   constructor() {
-    this.loadMessages();
     this.loadPlayers();
     this.loadFailures();
-  }
-
-  protected updateText(event: Event): void {
-    this.text.set((event.target as HTMLInputElement).value);
-  }
-
-  protected addMessage(): void {
-    const text = this.text().trim();
-    if (!text) {
-      return;
-    }
-
-    this.messageApi.create(text).subscribe((message) => {
-      this.messages.update((messages) => [message, ...messages]);
-      this.text.set('');
-    });
-  }
-
-  protected deleteMessage(id: number): void {
-    this.messageApi.delete(id).subscribe(() => {
-      this.messages.update((messages) => messages.filter((message) => message.id !== id));
-    });
   }
 
   protected updatePlayerName(event: Event): void {
@@ -144,10 +116,6 @@ export class AppComponent {
     }
 
     this.activeTab.set(tab);
-  }
-
-  private loadMessages(): void {
-    this.messageApi.list().subscribe((messages) => this.messages.set(messages));
   }
 
   private loadPlayers(): void {

@@ -54,38 +54,8 @@
   </nav>
 
   @if (activeTab() === 'balance') {
-    <section aria-labelledby="messages-heading">
-      <h1 id="messages-heading">Messages</h1>
-
-      <form (submit)="addMessage(); $event.preventDefault()">
-        <label for="message-text">Nouveau message</label>
-        <div class="form-row">
-          <input
-            id="message-text"
-            type="text"
-            [value]="text()"
-            (input)="updateText($event)"
-            required
-          >
-          <button type="submit">Ajouter</button>
-        </div>
-      </form>
-
-      @if (messages().length === 0) {
-        <p>Aucun message.</p>
-      } @else {
-        <ul>
-          @for (message of messages(); track message.id) {
-            <li>
-              <div>
-                <p>{{ message.text }}</p>
-                <time [attr.datetime]="message.createdAt">{{ message.createdAt | date: 'medium' }}</time>
-              </div>
-              <button type="button" (click)="deleteMessage(message.id)">Supprimer</button>
-            </li>
-          }
-        </ul>
-      }
+    <section class="empty-tab" aria-labelledby="balance-heading">
+      <h1 id="balance-heading">Balance</h1>
     </section>
   } @else if (activeTab() === 'players') {
     <section class="players" aria-labelledby="players-heading">

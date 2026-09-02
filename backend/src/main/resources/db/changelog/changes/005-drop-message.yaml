@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-drop-message
+      author: beebank
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: message
+      changes:
+        - dropTable:
+            tableName: message
