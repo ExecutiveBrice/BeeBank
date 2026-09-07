@@ -52,16 +52,34 @@ public class BalanceEntryController {
     }
 
     @PostMapping
+    @Transactional
     ResponseEntity<BalanceEntryResponse> create(@Valid @RequestBody CreateBalanceEntryRequest request) {
-        Player player = playerRepository.findById(request.playerId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Joueur introuvable."));
-        Failure failure = failureRepository.findById(request.failureId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Échec introuvable."));
+        BalanceEntryCreationDetails details = balanceEntryRepository.findCreationDetails(
+                request.playerId(), request.failureId());
+        if (details.getPlayerId() == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Joueur introuvable.");
+        }
+        if (details.getFailureId() == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Échec introuvable.");
+        }
+
+        // References are attached to this transaction and do not trigger a new SELECT.
+        Player player = playerRepository.getReferenceById(request.playerId());
+        Failure failure = failureRepository.getReferenceById(request.failureId());
         BalanceEntry savedEntry = balanceEntryRepository.save(new BalanceEntry(player, failure));
 
         return ResponseEntity
                 .created(URI.create("/api/balance-entries/" + savedEntry.getId()))
-                .body(BalanceEntryResponse.from(savedEntry));
+                .body(new BalanceEntryResponse(
+                        savedEntry.getId(),
+                        details.getPlayerId(),
+                        details.getPlayerName(),
+                        details.getFailureId(),
+                        details.getFailureName(),
+                        details.getFailureAmount(),
+                        savedEntry.isPaid(),
+                        savedEntry.getCreatedAt()
+                ));
     }
 
     @PatchMapping("/{id}/paid")

@@ -6,6 +6,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -19,20 +20,20 @@ class PlayerControllerTest {
     private final PlayerController controller = new PlayerController(playerRepository, "secret");
 
     @Test
-    void rejectsAnExistingNameIgnoringCase() {
-        when(playerRepository.existsByNameIgnoreCase("Alice")).thenReturn(true);
+    void createsAPlayerWithoutCheckingForDuplicatesFirst() {
+        when(playerRepository.saveAndFlush(any(Player.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> controller.create(new CreatePlayerRequest("  Alice  ")))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("409 CONFLICT")
-                .hasMessageContaining("Ce prénom est déjà utilisé.");
+        var response = controller.create(new CreatePlayerRequest("  Alice  "));
 
-        verify(playerRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Player.class));
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getBody().name()).isEqualTo("Alice");
+        verify(playerRepository).saveAndFlush(any(Player.class));
     }
 
     @Test
     void reportsAConflictWhenTheDatabaseRejectsAConcurrentDuplicate() {
-        when(playerRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(Player.class)))
+        when(playerRepository.saveAndFlush(any(Player.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate player name"));
 
         assertThatThrownBy(() -> controller.create(new CreatePlayerRequest("Alice")))

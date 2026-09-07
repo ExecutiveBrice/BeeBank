@@ -23,4 +23,24 @@ interface BalanceEntryRepository extends JpaRepository<BalanceEntry, Long> {
             where entry.id = :id
             """)
     Optional<BalanceEntry> findByIdWithDetails(@Param("id") Long id);
+
+    /**
+     * Loads the data needed to return a newly created entry with one database
+     * round trip. The single-row derived table lets us distinguish a missing
+     * player from a missing failure without issuing two independent lookups.
+     */
+    @Query(value = """
+            select player.id as "playerId",
+                   player.name as "playerName",
+                   failure.id as "failureId",
+                   failure.name as "failureName",
+                   failure.amount as "failureAmount"
+            from (select 1) as request
+            left join player on player.id = :playerId
+            left join failure on failure.id = :failureId
+            """, nativeQuery = true)
+    BalanceEntryCreationDetails findCreationDetails(
+            @Param("playerId") Long playerId,
+            @Param("failureId") Long failureId
+    );
 }

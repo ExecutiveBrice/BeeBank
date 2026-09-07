@@ -21,15 +21,15 @@ class FailureControllerTest {
     private final FailureController controller = new FailureController(failureRepository, "secret");
 
     @Test
-    void rejectsAnExistingNameIgnoringCase() {
-        when(failureRepository.existsByNameIgnoreCase("Retard")).thenReturn(true);
+    void createsAFailureWithoutCheckingForDuplicatesFirst() {
+        when(failureRepository.saveAndFlush(any(Failure.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> controller.create(new CreateFailureRequest("  Retard  ", new BigDecimal("5.00"))))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("409 CONFLICT")
-                .hasMessageContaining("Ce nom d’échec est déjà utilisé.");
+        var response = controller.create(new CreateFailureRequest("  Retard  ", new BigDecimal("5.00")));
 
-        verify(failureRepository, never()).saveAndFlush(any(Failure.class));
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getBody().name()).isEqualTo("Retard");
+        verify(failureRepository).saveAndFlush(any(Failure.class));
     }
 
     @Test

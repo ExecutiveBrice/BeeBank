@@ -55,7 +55,7 @@ Liquibase crée et met à jour le schéma. Hibernate le valide uniquement.
    | `ACCESS_PASSWORD` | mot de passe de l'onglet Paramétrage |
    | `FRONTEND_URL` | origine du site Angular, par exemple `https://mon-frontend.onrender.com` |
 
-Le conteneur utilise automatiquement le port `PORT` fourni par Render. Liquibase applique les migrations non exécutées et Hibernate valide uniquement le schéma ; aucune donnée n'est supprimée ou recréée. Le pool de production est limité à deux connexions.
+Le conteneur utilise automatiquement le port `PORT` fourni par Render. Liquibase applique les migrations non exécutées et Hibernate valide uniquement le schéma ; aucune donnée n'est supprimée ou recréée. Le pool de production est limité à deux connexions, dont une conservée prête à servir et maintenue active pour éviter le coût d'une reconnexion à Neon après une période d'inactivité.
 
 ### 3. Déployer le frontend sur Render
 

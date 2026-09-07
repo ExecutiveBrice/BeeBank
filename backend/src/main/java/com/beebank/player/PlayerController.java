@@ -42,10 +42,6 @@ public class PlayerController {
     @PostMapping
     ResponseEntity<PlayerResponse> create(@Valid @RequestBody CreatePlayerRequest request) {
         String name = request.name().trim();
-        if (playerRepository.existsByNameIgnoreCase(name)) {
-            throw duplicatePlayerException();
-        }
-
         Player savedPlayer;
         try {
             savedPlayer = playerRepository.saveAndFlush(new Player(name));

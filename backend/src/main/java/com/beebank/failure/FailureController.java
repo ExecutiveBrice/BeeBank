@@ -42,10 +42,6 @@ public class FailureController {
     @PostMapping
     ResponseEntity<FailureResponse> create(@Valid @RequestBody CreateFailureRequest request) {
         String name = request.name().trim();
-        if (failureRepository.existsByNameIgnoreCase(name)) {
-            throw duplicateFailureException();
-        }
-
         Failure savedFailure;
         try {
             savedFailure = failureRepository.saveAndFlush(new Failure(name, request.amount()));
