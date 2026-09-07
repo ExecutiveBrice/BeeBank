@@ -1,6 +1,6 @@
 spring:
   application:
-    name: beebank
+    name: beebankback
   profiles:
     default: local
   jpa:

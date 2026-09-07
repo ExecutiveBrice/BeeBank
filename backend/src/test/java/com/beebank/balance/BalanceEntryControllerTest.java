@@ -59,6 +59,7 @@ class BalanceEntryControllerTest {
     @Test
     void refusesToCreateAnEntryWhenThePlayerDoesNotExist() {
         BalanceEntryCreationDetails details = mock(BalanceEntryCreationDetails.class);
+        when(details.getPlayerId()).thenReturn(null);
         when(balanceEntryRepository.findCreationDetails(1L, 2L)).thenReturn(details);
 
         var exception = org.assertj.core.api.Assertions.catchThrowable(
