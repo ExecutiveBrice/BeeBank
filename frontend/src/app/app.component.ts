@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
+import { finalize } from 'rxjs';
 import { PlayerApiService } from './player-api.service';
 import { Player } from './player';
 import { FailureApiService } from './failure-api.service';
@@ -69,6 +70,7 @@ export class AppComponent {
   protected readonly selectedPlayerId = signal('');
   protected readonly selectedFailureId = signal('');
   protected readonly activeTab = signal<Tab>('podium');
+  protected readonly isPodiumLoading = signal(true);
   protected readonly passwordModalOpen = signal(false);
   protected readonly password = signal('');
   protected readonly passwordError = signal(false);
@@ -275,15 +277,30 @@ export class AppComponent {
   }
 
   private loadPlayers(): void {
-    this.playerApi.list().subscribe((players) => this.players.set(players));
+    this.playerApi.list()
+      .pipe(finalize(() => this.finishInitialPodiumLoad()))
+      .subscribe((players) => this.players.set(players));
   }
 
   private loadFailures(): void {
-    this.failureApi.list().subscribe((failures) => this.failures.set(failures));
+    this.failureApi.list()
+      .pipe(finalize(() => this.finishInitialPodiumLoad()))
+      .subscribe((failures) => this.failures.set(failures));
   }
 
   private loadBalanceEntries(): void {
-    this.balanceEntryApi.list().subscribe((entries) => this.balanceEntries.set(entries));
+    this.balanceEntryApi.list()
+      .pipe(finalize(() => this.finishInitialPodiumLoad()))
+      .subscribe((entries) => this.balanceEntries.set(entries));
+  }
+
+  private initialPodiumRequestsPending = 3;
+
+  private finishInitialPodiumLoad(): void {
+    this.initialPodiumRequestsPending -= 1;
+    if (this.initialPodiumRequestsPending === 0) {
+      this.isPodiumLoading.set(false);
+    }
   }
 
   private deleteBalanceEntry(id: number, password: string): void {

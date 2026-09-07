@@ -230,25 +230,32 @@
     </section>
   } @else {
     <section class="podium" aria-labelledby="podium-heading">
-      <p class="podium-grand-total">
-        <strong>{{ podiumTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</strong>
-      </p>
-
-      @if (podiumPlayers().length === 0) {
-        <p>Aucun joueur enregistré.</p>
+      @if (isPodiumLoading()) {
+        <div class="podium-loader" role="status" aria-live="polite">
+          <span class="podium-loader-spinner" aria-hidden="true"></span>
+          <span>Chargement du podium…</span>
+        </div>
       } @else {
-        <ol class="podium-list">
-          @for (player of podiumPlayers(); track player.id) {
-            <li>
-              <span class="podium-rank" aria-hidden="true">{{ $index + 1 }}</span>
-              <strong>{{ player.name }}</strong>
-              <div class="podium-totals">
-                <span class="podium-total">{{ player.total | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
-                <span class="podium-unpaid-total">À payer : {{ player.unpaidTotal | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
-              </div>
-            </li>
-          }
-        </ol>
+        <p class="podium-grand-total">
+          <strong>{{ podiumTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</strong>
+        </p>
+
+        @if (podiumPlayers().length === 0) {
+          <p>Aucun joueur enregistré.</p>
+        } @else {
+          <ol class="podium-list">
+            @for (player of podiumPlayers(); track player.id) {
+              <li>
+                <span class="podium-rank" aria-hidden="true">{{ $index + 1 }}</span>
+                <strong>{{ player.name }}</strong>
+                <div class="podium-totals">
+                  <span class="podium-total">{{ player.total | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                  <span class="podium-unpaid-total">À payer : {{ player.unpaidTotal | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                </div>
+              </li>
+            }
+          </ol>
+        }
       }
     </section>
   }
