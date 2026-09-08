@@ -1,0 +1,19 @@
+{
+  "name": "BeeBank",
+  "short_name": "BeeBank",
+  "description": "Le suivi des échecs et des cagnottes de votre équipe.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f7b500",
+  "icons": [
+    {
+      "src": "assets/icons/beebank-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -13,3 +13,10 @@ bootstrapApplication(AppComponent, {
     { provide: LOCALE_ID, useValue: 'fr-FR' }
   ]
 }).catch((error: unknown) => console.error(error));
+
+if ('serviceWorker' in navigator && !location.hostname.includes('localhost')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(new URL('service-worker.js', document.baseURI))
+      .catch((error: unknown) => console.error('Impossible d’enregistrer le mode hors ligne.', error));
+  });
+}
