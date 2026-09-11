@@ -33,7 +33,7 @@
   </nav>
 
   @if (activeTab() === 'balance') {
-    <section class="balance" aria-labelledby="balance-heading">
+    <section id="balance" class="balance" aria-labelledby="balance-heading">
       <form (submit)="addBalanceEntry(); $event.preventDefault()">
         <div class="balance-form-fields">
           <div>
@@ -238,6 +238,12 @@
       } @else {
         <p class="podium-grand-total">
           <strong>{{ podiumTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</strong>
+          <a
+            class="podium-pay-debts-button"
+            href="https://pots.lydia.me/collect/pots?id=18242-caisse-noire-senior-2026-2027"
+          >
+            payer ses dettes ici
+          </a>
         </p>
 
         @if (podiumPlayers().length === 0) {
