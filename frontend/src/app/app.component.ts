@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
@@ -38,7 +38,27 @@ export class AppComponent {
   protected readonly failures = signal<Failure[]>([]);
   protected readonly failureName = signal('');
   protected readonly failureAmount = signal('');
+  protected readonly failureFreeAmount = signal(false);
+  protected readonly pendingBalanceEntry = signal<{ player: Player; failure: Failure } | null>(null);
+  protected readonly balanceEntryAmount = signal('');
+  protected readonly balanceEntryAmountError = signal('');
+  protected readonly isAddingBalanceEntry = signal(false);
+  private readonly amountDialog = viewChild<ElementRef<HTMLDialogElement>>('amountDialog');
   protected readonly balanceEntries = signal<BalanceEntry[]>([]);
+  protected readonly balanceEntryGroups = computed(() => [
+    {
+      paid: false,
+      label: 'Amendes non payées',
+      entries: this.balanceEntries().filter((entry) => !entry.paid),
+      emptyMessage: 'Aucune amende à payer.'
+    },
+    {
+      paid: true,
+      label: 'Amendes payées',
+      entries: this.balanceEntries().filter((entry) => entry.paid),
+      emptyMessage: 'Aucune amende déjà payée.'
+    }
+  ]);
   protected readonly podiumPlayers = computed<PodiumPlayer[]>(() => {
     const totalsInCents = new Map<number, number>();
     const unpaidTotalsInCents = new Map<number, number>();
@@ -83,6 +103,16 @@ export class AppComponent {
   protected failureIdPendingDeletion: number | null = null;
 
   constructor() {
+    effect(() => {
+      const dialog = this.amountDialog()?.nativeElement;
+      if (this.pendingBalanceEntry()) {
+        if (dialog && !dialog.open) {
+          dialog.showModal();
+        }
+      } else {
+        dialog?.close();
+      }
+    });
     this.loadPlayers();
     this.loadFailures();
     this.loadBalanceEntries();
@@ -132,6 +162,10 @@ export class AppComponent {
     this.failureAmount.set((event.target as HTMLInputElement).value);
   }
 
+  protected updateFailureFreeAmount(event: Event): void {
+    this.failureFreeAmount.set((event.target as HTMLInputElement).checked);
+  }
+
   protected addFailure(): void {
     const name = this.failureName().trim();
     const amount = Number(this.failureAmount());
@@ -144,11 +178,12 @@ export class AppComponent {
       return;
     }
 
-    this.failureApi.create(name, amount).subscribe({
+    this.failureApi.create(name, amount, this.failureFreeAmount()).subscribe({
       next: (failure) => {
         this.failures.update((failures) => [...failures, failure].sort((first, second) => first.name.localeCompare(second.name)));
         this.failureName.set('');
         this.failureAmount.set('');
+        this.failureFreeAmount.set(false);
       },
       error: (error: HttpErrorResponse) => {
         if (error.status === 409) {
@@ -167,17 +202,89 @@ export class AppComponent {
   }
 
   protected addBalanceEntry(): void {
+    if (this.isAddingBalanceEntry() || this.pendingBalanceEntry()) {
+      return;
+    }
     const playerId = Number(this.selectedPlayerId());
     const failureId = Number(this.selectedFailureId());
     if (!Number.isInteger(playerId) || playerId <= 0 || !Number.isInteger(failureId) || failureId <= 0) {
       return;
     }
 
-    this.balanceEntryApi.create(playerId, failureId).subscribe((entry) => {
-      this.balanceEntries.update((entries) => [entry, ...entries]);
-      this.selectedPlayerId.set('');
-      this.selectedFailureId.set('');
-    });
+    const player = this.players().find((player) => player.id === playerId);
+    const failure = this.failures().find((failure) => failure.id === failureId);
+    if (!player || !failure) {
+      return;
+    }
+
+    if (failure.freeAmount) {
+      this.balanceEntryAmount.set(String(failure.amount));
+      this.balanceEntryAmountError.set('');
+      this.pendingBalanceEntry.set({ player, failure });
+      return;
+    }
+
+    this.createBalanceEntry(playerId, failureId);
+  }
+
+  protected updateBalanceEntryAmount(event: Event): void {
+    this.balanceEntryAmount.set((event.target as HTMLInputElement).value);
+    this.balanceEntryAmountError.set('');
+  }
+
+  protected confirmBalanceEntry(): void {
+    const pending = this.pendingBalanceEntry();
+    const amount = Number(this.balanceEntryAmount());
+    if (!pending || this.isAddingBalanceEntry() || !Number.isFinite(amount)
+      || amount < 0.01 || amount > 99999999.99
+      || Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001) {
+      return;
+    }
+
+    this.createBalanceEntry(pending.player.id, pending.failure.id, amount);
+  }
+
+  protected closeAmountModal(event?: Event): void {
+    event?.preventDefault();
+    if (!this.isAddingBalanceEntry()) {
+      this.pendingBalanceEntry.set(null);
+      this.balanceEntryAmount.set('');
+      this.balanceEntryAmountError.set('');
+    }
+  }
+
+  protected onAmountDialogClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      const bounds = this.amountDialog()!.nativeElement.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right
+        || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+        this.closeAmountModal();
+      }
+    }
+  }
+
+  private createBalanceEntry(playerId: number, failureId: number, amount?: number): void {
+    this.balanceEntryAmountError.set('');
+    this.isAddingBalanceEntry.set(true);
+    this.balanceEntryApi.create(playerId, failureId, amount)
+      .pipe(finalize(() => this.isAddingBalanceEntry.set(false)))
+      .subscribe({
+        next: (entry) => {
+          this.balanceEntries.update((entries) => [entry, ...entries]);
+          this.selectedPlayerId.set('');
+          this.selectedFailureId.set('');
+          this.pendingBalanceEntry.set(null);
+          this.balanceEntryAmount.set('');
+        },
+        error: () => {
+          const message = 'Impossible d’ajouter cet échec. Veuillez réessayer.';
+          if (this.pendingBalanceEntry()) {
+            this.balanceEntryAmountError.set(message);
+          } else {
+            this.showToast(message);
+          }
+        }
+      });
   }
 
   protected requestBalanceEntryDeletion(id: number): void {

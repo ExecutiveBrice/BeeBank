@@ -7,6 +7,7 @@ import com.beebank.player.PlayerRepository;
 import jakarta.validation.Valid;
 import jakarta.transaction.Transactional;
 import java.net.URI;
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 @RequestMapping("/api/balance-entries")
@@ -63,10 +65,17 @@ public class BalanceEntryController {
             throw new ResponseStatusException(NOT_FOUND, "Échec introuvable.");
         }
 
+        if (!details.getFailureFreeAmount() && request.amount() != null
+                && request.amount().compareTo(details.getFailureAmount()) != 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "Le montant de cet échec est fixe.");
+        }
+        BigDecimal amount = details.getFailureFreeAmount() && request.amount() != null
+                ? request.amount() : details.getFailureAmount();
+
         // References are attached to this transaction and do not trigger a new SELECT.
         Player player = playerRepository.getReferenceById(request.playerId());
         Failure failure = failureRepository.getReferenceById(request.failureId());
-        BalanceEntry savedEntry = balanceEntryRepository.save(new BalanceEntry(player, failure));
+        BalanceEntry savedEntry = balanceEntryRepository.save(new BalanceEntry(player, failure, amount));
 
         return ResponseEntity
                 .created(URI.create("/api/balance-entries/" + savedEntry.getId()))
@@ -76,7 +85,7 @@ public class BalanceEntryController {
                         details.getPlayerName(),
                         details.getFailureId(),
                         details.getFailureName(),
-                        details.getFailureAmount(),
+                        savedEntry.getAmount(),
                         savedEntry.isPaid(),
                         savedEntry.getCreatedAt()
                 ));

@@ -21,7 +21,7 @@ record BalanceEntryResponse(
                 entry.getPlayer().getName(),
                 entry.getFailure().getId(),
                 entry.getFailure().getName(),
-                entry.getFailure().getAmount(),
+                entry.getAmount(),
                 entry.isPaid(),
                 entry.getCreatedAt()
         );

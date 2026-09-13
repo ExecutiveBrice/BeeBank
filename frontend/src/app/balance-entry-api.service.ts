@@ -13,8 +13,8 @@ export class BalanceEntryApiService {
     return this.http.get<BalanceEntry[]>(this.endpoint);
   }
 
-  create(playerId: number, failureId: number): Observable<BalanceEntry> {
-    return this.http.post<BalanceEntry>(this.endpoint, { playerId, failureId });
+  create(playerId: number, failureId: number, amount?: number): Observable<BalanceEntry> {
+    return this.http.post<BalanceEntry>(this.endpoint, { playerId, failureId, amount });
   }
 
   markAsPaid(id: number, password: string): Observable<BalanceEntry> {

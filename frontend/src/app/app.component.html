@@ -5,20 +5,25 @@
       class="tab"
       [class.tab--active]="activeTab() === 'podium'"
       [attr.aria-selected]="activeTab() === 'podium'"
+      aria-label="Dettes"
       (click)="selectTab('podium')"
     >
-      <i class="bi bi-trophy-fill tab-icon" aria-hidden="true"></i>
-      <span>Podium</span>
+      <span class="tab-icon money-bag-icon" aria-hidden="true">
+        <i class="bi bi-bag-fill"></i>
+        <i class="bi bi-currency-dollar money-bag-dollar"></i>
+      </span>
+      <span>Dettes</span>
     </button>
     <button
       type="button"
       class="tab"
       [class.tab--active]="activeTab() === 'balance'"
       [attr.aria-selected]="activeTab() === 'balance'"
+      aria-label="Amendes"
       (click)="selectTab('balance')"
     >
-      <i class="bi bi-bullseye tab-icon" aria-hidden="true"></i>
-      <span>Balance</span>
+      <span class="tab-icon whistle-icon" aria-hidden="true"></span>
+      <span>Amendes</span>
     </button>
     <button
       type="button"
@@ -52,7 +57,7 @@
             </select>
           </div>
           <div>
-            <label class="visually-hidden" for="balance-failure">Échec</label>
+            <label class="visually-hidden" for="balance-failure">Amende</label>
             <select
               id="balance-failure"
               class="form-select shadow-sm"
@@ -60,9 +65,13 @@
               (change)="updateSelectedFailure($event)"
               required
             >
-              <option value="" disabled>Echec</option>
+              <option value="" disabled>Amende</option>
               @for (failure of failures(); track failure.id) {
-                <option [value]="failure.id">{{ failure.name }} — {{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</option>
+                <option
+                  [value]="failure.id"
+                  [attr.title]="failure.freeAmount ? 'Montant modifiable' : null"
+                  [attr.aria-label]="failure.name + ' — ' + (failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR') + (failure.freeAmount ? ' — Montant modifiable' : '')"
+                >{{ failure.name }} — {{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}{{ failure.freeAmount ? ' ✎' : '' }}</option>
               }
             </select>
           </div>
@@ -70,54 +79,59 @@
         <button
           type="submit"
           class="btn btn-primary shadow-sm"
-          [disabled]="players().length === 0 || failures().length === 0"
+          [disabled]="players().length === 0 || failures().length === 0 || isAddingBalanceEntry()"
         >
           Ajouter
         </button>
       </form>
 
 
-      @if (balanceEntries().length === 0) {
-        <p>Aucune entrée</p>
-      } @else {
-        <ul class="balance-entries-list">
-          @for (entry of balanceEntries(); track entry.id) {
-            <li>
-              <div>
-                <strong>{{ entry.playerName }}</strong>
-                <span> — {{ entry.failureName }}</span>
-              </div>
-              <div class="balance-entry-actions">
-                <div class="balance-entry-details">
-                  <span>{{ entry.failureAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
-                  <time [attr.datetime]="entry.createdAt">{{ entry.createdAt | date: 'dd/MM/yyyy à HH:mm' : undefined : 'fr-FR' }}</time>
-                </div>
-                @if (!entry.paid) {
-                  <button
-                    type="button"
-                    class="payment-status payment-status--unpaid"
-                    [attr.aria-label]="'Marquer l’entrée de ' + entry.playerName + ' comme payée'"
-                    (click)="requestBalanceEntryPayment(entry.id)"
-                  >
-                    <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
-                  </button>
-                } @else {
-                  <span class="payment-status payment-status--paid" role="img" aria-label="Payée">
-                    <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
-                  </span>
-                }
-                <button
-                  type="button"
-                  class="delete-button"
-                  [attr.aria-label]="'Supprimer l’entrée de ' + entry.playerName"
-                  (click)="requestBalanceEntryDeletion(entry.id)"
-                >
-                  <i class="bi bi-trash-fill delete-icon" aria-hidden="true"></i>
-                </button>
-              </div>
-            </li>
+      @for (group of balanceEntryGroups(); track group.paid) {
+        <details class="balance-entry-group" [attr.open]="!group.paid ? '' : null">
+          <summary>{{ group.label }} ({{ group.entries.length }})</summary>
+          @if (group.entries.length === 0) {
+            <p class="balance-entry-group-empty">{{ group.emptyMessage }}</p>
+          } @else {
+            <ul class="balance-entries-list">
+              @for (entry of group.entries; track entry.id) {
+                <li>
+                  <div>
+                    <strong>{{ entry.playerName }}</strong>
+                    <span> — {{ entry.failureName }}</span>
+                  </div>
+                  <div class="balance-entry-actions">
+                    <div class="balance-entry-details">
+                      <span>{{ entry.failureAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                      <time [attr.datetime]="entry.createdAt">{{ entry.createdAt | date: 'dd/MM/yyyy à HH:mm' : undefined : 'fr-FR' }}</time>
+                    </div>
+                    @if (!entry.paid) {
+                      <button
+                        type="button"
+                        class="payment-status payment-status--unpaid"
+                        [attr.aria-label]="'Marquer l’entrée de ' + entry.playerName + ' comme payée'"
+                        (click)="requestBalanceEntryPayment(entry.id)"
+                      >
+                        <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
+                      </button>
+                    } @else {
+                      <span class="payment-status payment-status--paid" role="img" aria-label="Payée">
+                        <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
+                      </span>
+                    }
+                    <button
+                      type="button"
+                      class="delete-button"
+                      [attr.aria-label]="'Supprimer l’entrée de ' + entry.playerName"
+                      (click)="requestBalanceEntryDeletion(entry.id)"
+                    >
+                      <i class="bi bi-trash-fill delete-icon" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </li>
+              }
+            </ul>
           }
-        </ul>
+        </details>
       }
     </section>
   } @else if (activeTab() === 'settings') {
@@ -170,15 +184,15 @@
       <section aria-labelledby="failures-heading">
 
 
-        <form (submit)="addFailure(); $event.preventDefault()">
+        <form class="failure-form" (submit)="addFailure(); $event.preventDefault()">
           <div class="failure-form-fields">
             <div>
-              <label class="visually-hidden" for="failure-name">Échec</label>
+              <label class="visually-hidden" for="failure-name">Amende</label>
               <input
                 id="failure-name"
                 class="form-control shadow-sm"
                 type="text"
-                placeholder="Échec"
+                placeholder="Amende"
                 maxlength="100"
                 [value]="failureName()"
                 (input)="updateFailureName($event)"
@@ -200,6 +214,16 @@
                 required
               >
             </div>
+            <div class="form-check failure-free-amount">
+              <input
+                id="failure-free-amount"
+                class="form-check-input"
+                type="checkbox"
+                [checked]="failureFreeAmount()"
+                (change)="updateFailureFreeAmount($event)"
+              >
+              <label class="form-check-label" for="failure-free-amount">Modifiable</label>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary shadow-sm">Ajouter</button>
         </form>
@@ -212,7 +236,12 @@
               <li>
                 <span>{{ failure.name }}</span>
                 <div class="failure-actions">
-                  <span class="failure-amount">{{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}</span>
+                  <span class="failure-amount">
+                    {{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}
+                    @if (failure.freeAmount) {
+                      <span class="editable-amount-icon" role="img" aria-label="Montant modifiable" title="Montant modifiable">✎</span>
+                    }
+                  </span>
                   <button
                     type="button"
                     class="delete-button"
@@ -233,7 +262,7 @@
       @if (isPodiumLoading()) {
         <div class="podium-loader" role="status" aria-live="polite">
           <span class="podium-loader-spinner" aria-hidden="true"></span>
-          <span>Chargement du podium…</span>
+          <span>Chargement des dettes…</span>
         </div>
       } @else {
         <p class="podium-grand-total">
@@ -265,6 +294,45 @@
       }
     </section>
   }
+
+  <dialog
+    #amountDialog
+    class="amount-modal"
+    aria-labelledby="amount-modal-heading"
+    aria-describedby="amount-modal-hint"
+    (cancel)="closeAmountModal($event)"
+    (click)="onAmountDialogClick($event)"
+  >
+    <h2 id="amount-modal-heading">Montant de l’échec</h2>
+    <p id="amount-modal-hint" class="password-hint">
+      {{ pendingBalanceEntry()?.player?.name }} — {{ pendingBalanceEntry()?.failure?.name }}.
+      Vous pouvez modifier le montant proposé.
+    </p>
+    <form (submit)="confirmBalanceEntry(); $event.preventDefault()">
+      <label for="balance-entry-amount">Montant en euros</label>
+      <input
+        id="balance-entry-amount"
+        class="form-control shadow-sm"
+        type="number"
+        min="0.01"
+        max="99999999.99"
+        step="0.01"
+        inputmode="decimal"
+        [value]="balanceEntryAmount()"
+        (input)="updateBalanceEntryAmount($event)"
+        [disabled]="isAddingBalanceEntry()"
+        autofocus
+        required
+      >
+      @if (balanceEntryAmountError()) {
+        <p class="text-danger mt-2" role="alert">{{ balanceEntryAmountError() }}</p>
+      }
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline-secondary" [disabled]="isAddingBalanceEntry()" (click)="closeAmountModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary" [disabled]="isAddingBalanceEntry()">Ajouter</button>
+      </div>
+    </form>
+  </dialog>
 
   @if (passwordModalOpen()) {
     <div class="modal-backdrop" (click)="closePasswordModal()">

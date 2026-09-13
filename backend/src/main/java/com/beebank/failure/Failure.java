@@ -22,12 +22,20 @@ public class Failure {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "free_amount", nullable = false)
+    private boolean freeAmount;
+
     protected Failure() {
     }
 
     public Failure(String name, BigDecimal amount) {
+        this(name, amount, false);
+    }
+
+    public Failure(String name, BigDecimal amount, boolean freeAmount) {
         this.name = name;
         this.amount = amount;
+        this.freeAmount = freeAmount;
     }
 
     public Long getId() {
@@ -40,5 +48,9 @@ public class Failure {
 
     public BigDecimal getAmount() {
         return amount;
+    }
+
+    public boolean isFreeAmount() {
+        return freeAmount;
     }
 }

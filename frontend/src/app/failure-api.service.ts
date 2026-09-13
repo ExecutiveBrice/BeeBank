@@ -13,8 +13,8 @@ export class FailureApiService {
     return this.http.get<Failure[]>(this.endpoint);
   }
 
-  create(name: string, amount: number): Observable<Failure> {
-    return this.http.post<Failure>(this.endpoint, { name, amount });
+  create(name: string, amount: number, freeAmount: boolean): Observable<Failure> {
+    return this.http.post<Failure>(this.endpoint, { name, amount, freeAmount });
   }
 
   delete(id: number, password: string): Observable<void> {

@@ -44,7 +44,7 @@ public class FailureController {
         String name = request.name().trim();
         Failure savedFailure;
         try {
-            savedFailure = failureRepository.saveAndFlush(new Failure(name, request.amount()));
+            savedFailure = failureRepository.saveAndFlush(new Failure(name, request.amount(), request.freeAmount()));
         } catch (DataIntegrityViolationException exception) {
             throw duplicateFailureException();
         }

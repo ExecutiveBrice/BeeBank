@@ -43,6 +43,30 @@ main {
   line-height: 1;
 }
 
+.whistle-icon {
+  background-color: currentColor;
+  display: inline-block;
+  flex-shrink: 0;
+  height: 1em;
+  mask: url('/assets/icons/lucide/whistle.svg') center / contain no-repeat;
+  width: 1em;
+}
+
+.money-bag-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.money-bag-dollar {
+  color: #fff;
+  font-size: 0.5em;
+  left: 50%;
+  position: absolute;
+  top: 60%;
+  transform: translate(-50%, -50%);
+}
+
 input {
   flex: 1;
 }
@@ -93,6 +117,37 @@ form .btn {
 
 .balance-form-fields select {
   width: 100%;
+}
+
+.balance-entry-group {
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  padding: 0 1rem;
+}
+
+.balance-entry-group summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 1rem 0;
+}
+
+.balance-entry-group summary:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 0.25rem;
+}
+
+.balance-entry-group-empty {
+  color: #666;
+  padding-bottom: 1rem;
+}
+
+.balance-entries-list {
+  margin: 0;
+}
+
+.balance-entries-list li:last-child {
+  border-bottom: 0;
 }
 
 .balance-entries-list li {
@@ -180,9 +235,30 @@ button.payment-status--unpaid {
 }
 
 .failure-form-fields {
+  align-items: center;
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(0, 2fr) minmax(10rem, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(4rem, 1fr) auto;
+}
+
+.failure-free-amount {
+  align-items: center;
+  display: flex;
+  gap: 0.375rem;
+  height: 2.5rem;
+  margin-bottom: 0;
+  padding-left: 0;
+  white-space: nowrap;
+}
+
+.failure-free-amount .form-check-input {
+  flex: 0 0 auto;
+  float: none;
+  margin: 0;
+}
+
+.failure-form > .btn {
+  align-self: start;
 }
 
 .failures-list li {
@@ -200,6 +276,13 @@ button.payment-status--unpaid {
   text-align: right;
 }
 
+.editable-amount-icon {
+  color: #666;
+  display: inline-block;
+  font-size: 1.125rem;
+  margin-left: 0.25rem;
+}
+
 .modal-backdrop {
   align-items: center;
   background: rgb(0 0 0 / 45%);
@@ -211,7 +294,8 @@ button.payment-status--unpaid {
   z-index: 1;
 }
 
-.password-modal {
+.password-modal,
+.amount-modal {
   background: #fff;
   border-radius: 0.5rem;
   box-shadow: 0 1rem 3rem rgb(0 0 0 / 20%);
@@ -220,8 +304,17 @@ button.payment-status--unpaid {
   width: 100%;
 }
 
-.password-modal h2 {
+.password-modal h2,
+.amount-modal h2 {
   margin: 0 0 1rem;
+}
+
+.amount-modal {
+  border: 0;
+}
+
+.amount-modal::backdrop {
+  background: rgb(0 0 0 / 45%);
 }
 
 .modal-actions {
@@ -402,7 +495,7 @@ h3 {
     padding: 0.75rem 0.25rem;
   }
 
-  .tab span {
+  .tab > span:not(.tab-icon) {
     display: none;
   }
 
@@ -411,10 +504,18 @@ h3 {
     gap: 0.5rem;
   }
 
-  .failure-form-fields,
   .balance-form-fields {
     gap: 0.5rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .failure-form-fields {
+    gap: 0.5rem;
+    grid-template-columns: minmax(0, 1fr) minmax(3.25rem, 0.6fr) auto;
+  }
+
+  .failure-free-amount {
+    font-size: 0.875rem;
   }
 
   .player-form-fields input,

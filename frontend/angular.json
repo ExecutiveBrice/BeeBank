@@ -19,6 +19,16 @@
             "assets": [
               "src/assets",
               {
+                "glob": "whistle.svg",
+                "input": "node_modules/lucide-static/icons",
+                "output": "/assets/icons/lucide"
+              },
+              {
+                "glob": "LICENSE",
+                "input": "node_modules/lucide-static",
+                "output": "/assets/icons/lucide"
+              },
+              {
                 "glob": "manifest.webmanifest",
                 "input": "src",
                 "output": "/"

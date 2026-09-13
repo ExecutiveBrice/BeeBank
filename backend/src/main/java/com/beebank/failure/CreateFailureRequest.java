@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 
 record CreateFailureRequest(
         @NotBlank @Size(max = 100) String name,
-        @NotNull @DecimalMin(value = "0.01") @Digits(integer = 8, fraction = 2) BigDecimal amount
+        @NotNull @DecimalMin(value = "0.01") @Digits(integer = 8, fraction = 2) BigDecimal amount,
+        boolean freeAmount
 ) {
 }

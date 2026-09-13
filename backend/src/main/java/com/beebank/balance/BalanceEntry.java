@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -30,6 +31,9 @@ public class BalanceEntry {
     @JoinColumn(name = "failure_id", nullable = false)
     private Failure failure;
 
+    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal amount;
+
     @Column(nullable = false)
     private boolean paid = false;
 
@@ -40,8 +44,13 @@ public class BalanceEntry {
     }
 
     public BalanceEntry(Player player, Failure failure) {
+        this(player, failure, failure.getAmount());
+    }
+
+    public BalanceEntry(Player player, Failure failure, BigDecimal amount) {
         this.player = player;
         this.failure = failure;
+        this.amount = amount;
     }
 
     @PrePersist
@@ -59,6 +68,10 @@ public class BalanceEntry {
 
     public Failure getFailure() {
         return failure;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
     }
 
     public boolean isPaid() {

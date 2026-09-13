@@ -44,11 +44,12 @@ class BalanceEntryControllerTest {
         when(balanceEntryRepository.save(any(BalanceEntry.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = controller.create(new CreateBalanceEntryRequest(1L, 2L));
+        var response = controller.create(new CreateBalanceEntryRequest(1L, 2L, null));
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody().playerName()).isEqualTo("Alice");
         assertThat(response.getBody().failureName()).isEqualTo("Retard");
+        assertThat(response.getBody().failureAmount()).isEqualByComparingTo("2.50");
         verify(balanceEntryRepository).findCreationDetails(1L, 2L);
         verify(playerRepository).getReferenceById(1L);
         verify(failureRepository).getReferenceById(2L);
@@ -63,13 +64,83 @@ class BalanceEntryControllerTest {
         when(balanceEntryRepository.findCreationDetails(1L, 2L)).thenReturn(details);
 
         var exception = org.assertj.core.api.Assertions.catchThrowable(
-                () -> controller.create(new CreateBalanceEntryRequest(1L, 2L))
+                () -> controller.create(new CreateBalanceEntryRequest(1L, 2L, null))
         );
 
         assertThat(exception).isInstanceOf(ResponseStatusException.class);
         assertThat(((ResponseStatusException) exception).getStatusCode().value()).isEqualTo(404);
         verify(playerRepository, never()).getReferenceById(any());
         verify(failureRepository, never()).getReferenceById(any());
+    }
+
+    @Test
+    void storesTheChosenAmountAndReturnsItWhenListingAndPayingTheEntry() {
+        prepareCreation(true);
+
+        var response = controller.create(new CreateBalanceEntryRequest(1L, 2L, new BigDecimal("7.25")));
+        assertThat(response.getBody().failureAmount()).isEqualByComparingTo("7.25");
+
+        var captor = org.mockito.ArgumentCaptor.forClass(BalanceEntry.class);
+        verify(balanceEntryRepository).save(captor.capture());
+        BalanceEntry entry = captor.getValue();
+        assertThat(entry.getAmount()).isEqualByComparingTo("7.25");
+        assertThat(entry.getFailure().getAmount()).isEqualByComparingTo("2.50");
+        when(balanceEntryRepository.findAllWithDetailsOrderByCreatedAtDesc()).thenReturn(java.util.List.of(entry));
+        assertThat(controller.findAll().getFirst().failureAmount()).isEqualByComparingTo("7.25");
+
+        when(balanceEntryRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(entry));
+        var paid = controller.markAsPaid(1L, "secret").getBody();
+        assertThat(paid.paid()).isTrue();
+        assertThat(paid.failureAmount()).isEqualByComparingTo("7.25");
+    }
+
+    @Test
+    void usesTheDefaultAmountWhenNoCustomAmountIsProvidedForAFreeFailure() {
+        prepareCreation(true);
+
+        var response = controller.create(new CreateBalanceEntryRequest(1L, 2L, null));
+
+        assertThat(response.getBody().failureAmount()).isEqualByComparingTo("2.50");
+    }
+
+    @Test
+    void rejectsACustomAmountForAFixedFailure() {
+        prepareCreation(false);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> controller.create(new CreateBalanceEntryRequest(1L, 2L, new BigDecimal("7.25"))))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("400 BAD_REQUEST");
+        verify(balanceEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void validatesCustomAmountsAndAllowsOmittingTheAmount() {
+        try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            for (String invalid : java.util.List.of("0", "-1", "1.001", "100000000")) {
+                assertThat(validator.validate(new CreateBalanceEntryRequest(1L, 2L, new BigDecimal(invalid))))
+                        .isNotEmpty();
+            }
+            assertThat(validator.validate(new CreateBalanceEntryRequest(1L, 2L, new BigDecimal("7.25")))).isEmpty();
+            assertThat(validator.validate(new CreateBalanceEntryRequest(1L, 2L, null))).isEmpty();
+        }
+    }
+
+    private void prepareCreation(boolean freeAmount) {
+        BalanceEntryCreationDetails details = mock(BalanceEntryCreationDetails.class);
+        when(details.getPlayerId()).thenReturn(1L);
+        when(details.getPlayerName()).thenReturn("Alice");
+        when(details.getFailureId()).thenReturn(2L);
+        when(details.getFailureName()).thenReturn("Retard");
+        when(details.getFailureAmount()).thenReturn(new BigDecimal("2.50"));
+        when(details.getFailureFreeAmount()).thenReturn(freeAmount);
+        when(balanceEntryRepository.findCreationDetails(1L, 2L)).thenReturn(details);
+        when(playerRepository.getReferenceById(1L)).thenReturn(new Player("Alice"));
+        when(failureRepository.getReferenceById(2L))
+                .thenReturn(new Failure("Retard", new BigDecimal("2.50"), freeAmount));
+        when(balanceEntryRepository.save(any(BalanceEntry.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test

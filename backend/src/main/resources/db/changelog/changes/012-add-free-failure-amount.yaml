@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-add-free-failure-amount
+      author: beebank
+      changes:
+        - addColumn:
+            tableName: failure
+            columns:
+              - column:
+                  name: free_amount
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - addColumn:
+            tableName: balance_entry
+            columns:
+              - column:
+                  name: amount
+                  type: DECIMAL(10,2)
+        - sql:
+            sql: >-
+              UPDATE balance_entry
+              SET amount = failure.amount
+              FROM failure
+              WHERE balance_entry.failure_id = failure.id
+        - addNotNullConstraint:
+            tableName: balance_entry
+            columnName: amount
+            columnDataType: DECIMAL(10,2)

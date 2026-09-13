@@ -14,4 +14,6 @@ interface BalanceEntryCreationDetails {
     String getFailureName();
 
     BigDecimal getFailureAmount();
+
+    boolean getFailureFreeAmount();
 }

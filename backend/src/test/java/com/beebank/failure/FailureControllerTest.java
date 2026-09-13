@@ -25,10 +25,11 @@ class FailureControllerTest {
         when(failureRepository.saveAndFlush(any(Failure.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = controller.create(new CreateFailureRequest("  Retard  ", new BigDecimal("5.00")));
+        var response = controller.create(new CreateFailureRequest("  Retard  ", new BigDecimal("5.00"), false));
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody().name()).isEqualTo("Retard");
+        assertThat(response.getBody().freeAmount()).isFalse();
         verify(failureRepository).saveAndFlush(any(Failure.class));
     }
 
@@ -37,10 +38,21 @@ class FailureControllerTest {
         when(failureRepository.saveAndFlush(any(Failure.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate failure name"));
 
-        assertThatThrownBy(() -> controller.create(new CreateFailureRequest("Retard", new BigDecimal("5.00"))))
+        assertThatThrownBy(() -> controller.create(new CreateFailureRequest("Retard", new BigDecimal("5.00"), false)))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("409 CONFLICT")
                 .hasMessageContaining("Ce nom d’échec est déjà utilisé.");
+    }
+
+    @Test
+    void createsAFailureWithAFreeAmountAndKeepsItsDefaultAmount() {
+        when(failureRepository.saveAndFlush(any(Failure.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = controller.create(new CreateFailureRequest("Retard", new BigDecimal("5.00"), true));
+
+        assertThat(response.getBody().freeAmount()).isTrue();
+        assertThat(response.getBody().amount()).isEqualByComparingTo("5.00");
     }
 
     @Test

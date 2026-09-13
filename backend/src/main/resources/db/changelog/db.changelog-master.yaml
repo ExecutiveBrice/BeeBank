@@ -19,3 +19,5 @@ databaseChangeLog:
       file: db/changelog/changes/010-cascade-balance-entry-deletions.yaml
   - include:
       file: db/changelog/changes/011-add-paid-to-balance-entry.yaml
+  - include:
+      file: db/changelog/changes/012-add-free-failure-amount.yaml

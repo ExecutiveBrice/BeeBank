@@ -34,7 +34,8 @@ interface BalanceEntryRepository extends JpaRepository<BalanceEntry, Long> {
                    player.name as "playerName",
                    failure.id as "failureId",
                    failure.name as "failureName",
-                   failure.amount as "failureAmount"
+                   failure.amount as "failureAmount",
+                   failure.free_amount as "failureFreeAmount"
             from (select 1) as request
             left join player on player.id = :playerId
             left join failure on failure.id = :failureId
