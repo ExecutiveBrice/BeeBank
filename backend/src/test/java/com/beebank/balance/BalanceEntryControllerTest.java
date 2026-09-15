@@ -15,6 +15,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 import static org.mockito.ArgumentMatchers.any;
 
 class BalanceEntryControllerTest {
@@ -225,5 +226,76 @@ class BalanceEntryControllerTest {
         assertThat(controller.markAsPaid(1L, "wrong").getStatusCode().value()).isEqualTo(401);
 
         verify(balanceEntryRepository, never()).findByIdWithDetails(1L);
+    }
+
+    @Test
+    void paysAllSelectedEntriesWithOneAuthorizedRequest() {
+        BalanceEntry first = new BalanceEntry(new Player("Alice"), new Failure("Retard", new BigDecimal("2.50")));
+        BalanceEntry second = new BalanceEntry(new Player("Bob"), new Failure("Oubli", new BigDecimal("3.00")));
+        when(balanceEntryRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(first));
+        when(balanceEntryRepository.findByIdWithDetails(2L)).thenReturn(Optional.of(second));
+        when(balanceEntryRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = controller.markBatchAsPaid(new BalanceEntryBatchRequest(List.of(1L, 2L)), "secret");
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).hasSize(2).allMatch(BalanceEntryResponse::paid);
+        verify(balanceEntryRepository).saveAll(List.of(first, second));
+    }
+
+    @Test
+    void refusesToPayTheBatchIfAnEntryIsMissingOrAlreadyPaid() {
+        BalanceEntry first = new BalanceEntry(new Player("Alice"), new Failure("Retard", new BigDecimal("2.50")));
+        when(balanceEntryRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(first));
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> controller.markBatchAsPaid(
+                new BalanceEntryBatchRequest(List.of(1L, 2L)), "secret")))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(first.isPaid()).isFalse();
+        verify(balanceEntryRepository, never()).saveAll(any());
+
+        first.markAsPaid();
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> controller.markBatchAsPaid(
+                new BalanceEntryBatchRequest(List.of(1L)), "secret")))
+                .isInstanceOf(ResponseStatusException.class);
+        verify(balanceEntryRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void deletesAllSelectedEntriesOnlyAfterValidatingEveryId() {
+        BalanceEntry first = new BalanceEntry(new Player("Alice"), new Failure("Retard", new BigDecimal("2.50")));
+        BalanceEntry second = new BalanceEntry(new Player("Bob"), new Failure("Oubli", new BigDecimal("3.00")));
+        when(balanceEntryRepository.findById(1L)).thenReturn(Optional.of(first));
+        when(balanceEntryRepository.findById(2L)).thenReturn(Optional.of(second));
+
+        assertThat(controller.deleteBatch(new BalanceEntryBatchRequest(List.of(1L, 2L)), "secret")
+                .getStatusCode().value()).isEqualTo(204);
+        verify(balanceEntryRepository).deleteAll(List.of(first, second));
+
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> controller.deleteBatch(
+                new BalanceEntryBatchRequest(List.of(1L, 3L)), "secret")))
+                .isInstanceOf(ResponseStatusException.class);
+        verify(balanceEntryRepository, times(1)).deleteAll(any());
+    }
+
+    @Test
+    void rejectsUnauthorizedOrDuplicateBatchOperations() {
+        var request = new BalanceEntryBatchRequest(List.of(1L, 2L));
+        assertThat(controller.markBatchAsPaid(request, "wrong").getStatusCode().value()).isEqualTo(401);
+        assertThat(controller.deleteBatch(request, "wrong").getStatusCode().value()).isEqualTo(401);
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> controller.deleteBatch(
+                new BalanceEntryBatchRequest(List.of(1L, 1L)), "secret")))
+                .isInstanceOf(ResponseStatusException.class);
+        verify(balanceEntryRepository, never()).findById(any());
+        verify(balanceEntryRepository, never()).findByIdWithDetails(any());
+    }
+
+    @Test
+    void validatesBatchIds() {
+        try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            assertThat(validator.validate(new BalanceEntryBatchRequest(List.of()))).isNotEmpty();
+            assertThat(validator.validate(new BalanceEntryBatchRequest(List.of(0L)))).isNotEmpty();
+            assertThat(validator.validate(new BalanceEntryBatchRequest(List.of(1L, 2L)))).isEmpty();
+        }
     }
 }

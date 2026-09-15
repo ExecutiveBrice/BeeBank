@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { finalize } from 'rxjs';
+import { finalize, Observable } from 'rxjs';
 import { PlayerApiService } from './player-api.service';
 import { Player } from './player';
 import { FailureApiService } from './failure-api.service';
@@ -12,6 +12,7 @@ import { BalanceEntry } from './balance-entry';
 
 type Tab = 'balance' | 'podium' | 'settings';
 type ProtectedTab = 'settings';
+type BatchAction = 'payment' | 'deletion';
 
 interface PodiumPlayer {
   id: number;
@@ -52,7 +53,15 @@ export class AppComponent {
   protected readonly isAddingBalanceEntry = signal(false);
   private readonly amountDialog = viewChild<ElementRef<HTMLDialogElement>>('amountDialog');
   private readonly selectionDialog = viewChild<ElementRef<HTMLDialogElement>>('selectionDialog');
+  private readonly batchDialog = viewChild<ElementRef<HTMLDialogElement>>('batchDialog');
   protected readonly balanceEntries = signal<BalanceEntry[]>([]);
+  protected readonly batchSelectionMode = signal<BatchAction | null>(null);
+  protected readonly selectedBalanceEntryIds = signal<number[]>([]);
+  protected readonly batchEligibleEntries = computed(() => this.balanceEntries().filter((entry) => !entry.paid));
+  protected readonly isApplyingBatch = signal(false);
+  protected readonly batchActionError = signal('');
+  protected pendingBatchAction: BatchAction | null = null;
+  private authorizedBatchPassword: string | null = null;
   protected readonly balanceEntryGroups = computed(() => [
     {
       paid: false,
@@ -108,7 +117,6 @@ export class AppComponent {
   private protectedTab: ProtectedTab | null = null;
   private toastTimeout: ReturnType<typeof setTimeout> | null = null;
   protected balanceEntryIdPendingDeletion: number | null = null;
-  protected balanceEntryIdPendingPayment: number | null = null;
   protected playerIdPendingDeletion: number | null = null;
   protected failureIdPendingDeletion: number | null = null;
 
@@ -116,6 +124,7 @@ export class AppComponent {
     effect(() => {
       const amountDialog = this.amountDialog()?.nativeElement;
       const selectionDialog = this.selectionDialog()?.nativeElement;
+      const batchDialog = this.batchDialog()?.nativeElement;
       if (this.pendingBalanceEntry()) {
         if (selectionDialog?.open) {
           selectionDialog.close();
@@ -137,6 +146,13 @@ export class AppComponent {
         if (selectionDialog?.open) {
           selectionDialog.close();
         }
+      }
+      if (this.batchSelectionMode()) {
+        if (batchDialog && !batchDialog.open) {
+          batchDialog.showModal();
+        }
+      } else if (batchDialog?.open) {
+        batchDialog.close();
       }
     });
     this.loadPlayers();
@@ -308,6 +324,53 @@ export class AppComponent {
     }
   }
 
+  protected requestBatchSelection(mode: BatchAction): void {
+    this.selectedBalanceEntryIds.set([]);
+    this.pendingBatchAction = mode;
+    this.authorizedBatchPassword = null;
+    this.password.set('');
+    this.passwordError.set(false);
+    this.batchActionError.set('');
+    this.passwordModalOpen.set(true);
+  }
+
+  protected toggleBalanceEntrySelection(id: number, event: Event): void {
+    if (this.isApplyingBatch()) {
+      return;
+    }
+    const checked = (event.target as HTMLInputElement).checked;
+    this.selectedBalanceEntryIds.update((ids) => checked ? [...ids, id] : ids.filter((entryId) => entryId !== id));
+  }
+
+  protected validateBatchSelection(): void {
+    if (this.selectedBalanceEntryIds().length === 0 || this.isApplyingBatch() || !this.authorizedBatchPassword) {
+      return;
+    }
+    this.batchActionError.set('');
+    this.applyBatchAction(this.authorizedBatchPassword);
+  }
+
+  protected closeBatchSelection(event?: Event): void {
+    event?.preventDefault();
+    if (this.isApplyingBatch()) {
+      return;
+    }
+    this.resetBatchSelection();
+  }
+
+  private resetBatchSelection(): void {
+    this.batchSelectionMode.set(null);
+    this.selectedBalanceEntryIds.set([]);
+    this.authorizedBatchPassword = null;
+    this.batchActionError.set('');
+  }
+
+  protected onBatchDialogClick(event: MouseEvent): void {
+    if (this.clickedOutsideDialog(event, this.batchDialog()!.nativeElement)) {
+      this.closeBatchSelection();
+    }
+  }
+
   private clickedOutsideDialog(event: MouseEvent, dialog: HTMLDialogElement): boolean {
     if (event.target !== event.currentTarget) {
       return false;
@@ -381,14 +444,6 @@ export class AppComponent {
     this.passwordModalOpen.set(true);
   }
 
-  protected requestBalanceEntryPayment(id: number): void {
-    this.clearPendingDeletions();
-    this.balanceEntryIdPendingPayment = id;
-    this.password.set('');
-    this.passwordError.set(false);
-    this.passwordModalOpen.set(true);
-  }
-
   protected requestPlayerDeletion(id: number): void {
     this.clearPendingDeletions();
     this.playerIdPendingDeletion = id;
@@ -408,11 +463,12 @@ export class AppComponent {
   protected updatePassword(event: Event): void {
     this.password.set((event.target as HTMLInputElement).value);
     this.passwordError.set(false);
+    this.batchActionError.set('');
   }
 
   protected verifyPassword(): void {
     const password = this.password();
-    if (!password || (!this.protectedTab && !this.hasPendingAction())) {
+    if (!password || this.isApplyingBatch() || (!this.protectedTab && !this.hasPendingAction() && !this.pendingBatchAction)) {
       return;
     }
 
@@ -422,13 +478,18 @@ export class AppComponent {
         return;
       }
 
-      if (this.balanceEntryIdPendingDeletion !== null) {
-        this.deleteBalanceEntry(this.balanceEntryIdPendingDeletion, password);
+      if (this.pendingBatchAction) {
+        this.authorizedBatchPassword = password;
+        this.batchSelectionMode.set(this.pendingBatchAction);
+        this.pendingBatchAction = null;
+        this.password.set('');
+        this.passwordError.set(false);
+        this.passwordModalOpen.set(false);
         return;
       }
 
-      if (this.balanceEntryIdPendingPayment !== null) {
-        this.markBalanceEntryAsPaid(this.balanceEntryIdPendingPayment, password);
+      if (this.balanceEntryIdPendingDeletion !== null) {
+        this.deleteBalanceEntry(this.balanceEntryIdPendingDeletion, password);
         return;
       }
 
@@ -452,6 +513,10 @@ export class AppComponent {
   protected closePasswordModal(): void {
     this.protectedTab = null;
     this.clearPendingDeletions();
+    this.pendingBatchAction = null;
+    this.selectedBalanceEntryIds.set([]);
+    this.authorizedBatchPassword = null;
+    this.batchActionError.set('');
     this.password.set('');
     this.passwordError.set(false);
     this.passwordModalOpen.set(false);
@@ -510,14 +575,38 @@ export class AppComponent {
     });
   }
 
-  private markBalanceEntryAsPaid(id: number, password: string): void {
-    this.balanceEntryApi.markAsPaid(id, password).subscribe({
-      next: (updatedEntry) => {
-        this.balanceEntries.update((entries) => entries.map((entry) => entry.id === id ? updatedEntry : entry));
-        this.finishDeletion();
+  private applyBatchAction(password: string): void {
+    const ids = this.selectedBalanceEntryIds();
+    const action = this.batchSelectionMode();
+    if (!action || ids.length === 0) {
+      return;
+    }
+    this.isApplyingBatch.set(true);
+    const request: Observable<BalanceEntry[] | void> = action === 'payment'
+      ? this.balanceEntryApi.markBatchAsPaid(ids, password)
+      : this.balanceEntryApi.deleteBatch(ids, password);
+    request.pipe(finalize(() => this.isApplyingBatch.set(false))).subscribe({
+      next: (result) => {
+        if (action === 'payment') {
+          const updated = new Map((result as BalanceEntry[]).map((entry) => [entry.id, entry]));
+          this.balanceEntries.update((entries) => entries.map((entry) => updated.get(entry.id) ?? entry));
+        } else {
+          const deleted = new Set(ids);
+          this.balanceEntries.update((entries) => entries.filter((entry) => !deleted.has(entry.id)));
+        }
+        this.resetBatchSelection();
       },
-      error: () => {
-        this.passwordError.set(true);
+      error: (error: HttpErrorResponse) => {
+        if (error.status === 401) {
+          this.pendingBatchAction = action;
+          this.batchSelectionMode.set(null);
+          this.authorizedBatchPassword = null;
+          this.password.set('');
+          this.passwordError.set(true);
+          this.passwordModalOpen.set(true);
+        } else {
+          this.batchActionError.set('Impossible de modifier les amendes. Veuillez réessayer.');
+        }
       }
     });
   }
@@ -564,14 +653,12 @@ export class AppComponent {
 
   private clearPendingDeletions(): void {
     this.balanceEntryIdPendingDeletion = null;
-    this.balanceEntryIdPendingPayment = null;
     this.playerIdPendingDeletion = null;
     this.failureIdPendingDeletion = null;
   }
 
   private hasPendingAction(): boolean {
     return this.balanceEntryIdPendingDeletion !== null
-      || this.balanceEntryIdPendingPayment !== null
       || this.playerIdPendingDeletion !== null
       || this.failureIdPendingDeletion !== null;
   }

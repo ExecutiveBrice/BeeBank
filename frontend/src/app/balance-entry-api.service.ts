@@ -21,8 +21,14 @@ export class BalanceEntryApiService {
     return this.http.post<BalanceEntry[]>(`${this.endpoint}/batch`, { playerId, selections });
   }
 
-  markAsPaid(id: number, password: string): Observable<BalanceEntry> {
-    return this.http.patch<BalanceEntry>(`${this.endpoint}/${id}/paid`, null, {
+  markBatchAsPaid(ids: number[], password: string): Observable<BalanceEntry[]> {
+    return this.http.post<BalanceEntry[]>(`${this.endpoint}/batch/paid`, { ids }, {
+      headers: { 'X-Access-Password': password }
+    });
+  }
+
+  deleteBatch(ids: number[], password: string): Observable<void> {
+    return this.http.post<void>(`${this.endpoint}/batch/delete`, { ids }, {
       headers: { 'X-Access-Password': password }
     });
   }

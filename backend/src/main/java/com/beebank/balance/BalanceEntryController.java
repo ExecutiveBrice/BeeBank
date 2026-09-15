@@ -157,6 +157,52 @@ public class BalanceEntryController {
         return ResponseEntity.ok(BalanceEntryResponse.from(savedEntry));
     }
 
+    @PostMapping("/batch/paid")
+    @Transactional
+    ResponseEntity<List<BalanceEntryResponse>> markBatchAsPaid(
+            @Valid @RequestBody BalanceEntryBatchRequest request,
+            @RequestHeader("X-Access-Password") String password
+    ) {
+        if (!accessPassword.equals(password)) {
+            return ResponseEntity.status(401).build();
+        }
+        validateUniqueIds(request.ids());
+        List<BalanceEntry> entries = request.ids().stream()
+                .map(id -> balanceEntryRepository.findByIdWithDetails(id)
+                        .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Entrée introuvable.")))
+                .toList();
+        if (entries.stream().anyMatch(BalanceEntry::isPaid)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Une amende est déjà payée.");
+        }
+        entries.forEach(BalanceEntry::markAsPaid);
+        return ResponseEntity.ok(balanceEntryRepository.saveAll(entries).stream()
+                .map(BalanceEntryResponse::from).toList());
+    }
+
+    @PostMapping("/batch/delete")
+    @Transactional
+    ResponseEntity<Void> deleteBatch(
+            @Valid @RequestBody BalanceEntryBatchRequest request,
+            @RequestHeader("X-Access-Password") String password
+    ) {
+        if (!accessPassword.equals(password)) {
+            return ResponseEntity.status(401).build();
+        }
+        validateUniqueIds(request.ids());
+        List<BalanceEntry> entries = request.ids().stream()
+                .map(id -> balanceEntryRepository.findById(id)
+                        .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Entrée introuvable.")))
+                .toList();
+        balanceEntryRepository.deleteAll(entries);
+        return ResponseEntity.noContent().build();
+    }
+
+    private void validateUniqueIds(List<Long> ids) {
+        if (new HashSet<>(ids).size() != ids.size()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Une amende ne peut être sélectionnée qu'une fois.");
+        }
+    }
+
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(
             @PathVariable Long id,

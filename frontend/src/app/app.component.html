@@ -39,20 +39,31 @@
 
   @if (activeTab() === 'balance') {
     <section id="balance" class="balance" aria-labelledby="balance-heading">
-      <label class="visually-hidden" for="balance-player">Joueur</label>
-      <select
-        id="balance-player"
-        class="form-select shadow-sm balance-player-select"
-        [value]="selectedPlayerId()"
-        (change)="updateSelectedPlayer($event)"
-        [disabled]="isAddingBalanceEntry()"
-      >
-        <option value="">Joueur</option>
-        @for (player of players(); track player.id) {
-          <option [value]="player.id">{{ player.name }}</option>
-        }
-      </select>
-
+      <div class="balance-toolbar">
+        <label class="visually-hidden" for="balance-player">Joueur</label>
+        <select
+          id="balance-player"
+          class="form-select shadow-sm balance-player-select"
+          [value]="selectedPlayerId()"
+          (change)="updateSelectedPlayer($event)"
+          [disabled]="isAddingBalanceEntry()"
+        >
+          <option value="">Joueur</option>
+          @for (player of players(); track player.id) {
+            <option [value]="player.id">{{ player.name }}</option>
+          }
+        </select>
+        <button type="button" class="batch-toolbar-button batch-toolbar-button--payment"
+          aria-label="Marquer plusieurs amendes comme payées" title="Marquer plusieurs amendes comme payées"
+          [disabled]="balanceEntryGroups()[0].entries.length === 0" (click)="requestBatchSelection('payment')">
+          <i class="bi bi-piggy-bank-fill" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="batch-toolbar-button batch-toolbar-button--deletion"
+          aria-label="Supprimer plusieurs amendes" title="Supprimer plusieurs amendes"
+          [disabled]="balanceEntryGroups()[0].entries.length === 0" (click)="requestBatchSelection('deletion')">
+          <i class="bi bi-trash-fill" aria-hidden="true"></i>
+        </button>
+      </div>
 
       @for (group of balanceEntryGroups(); track group.paid) {
         <details class="balance-entry-group" [attr.open]="!group.paid ? '' : null">
@@ -73,27 +84,14 @@
                       <time [attr.datetime]="entry.createdAt">{{ entry.createdAt | date: 'dd/MM/yyyy à HH:mm' : undefined : 'fr-FR' }}</time>
                     </div>
                     @if (!entry.paid) {
-                      <button
-                        type="button"
-                        class="payment-status payment-status--unpaid"
-                        [attr.aria-label]="'Marquer l’entrée de ' + entry.playerName + ' comme payée'"
-                        (click)="requestBalanceEntryPayment(entry.id)"
-                      >
+                      <span class="payment-status payment-status--unpaid" role="img" aria-label="Non payée">
                         <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
-                      </button>
+                      </span>
                     } @else {
                       <span class="payment-status payment-status--paid" role="img" aria-label="Payée">
                         <i class="bi bi-piggy-bank-fill status-icon" aria-hidden="true"></i>
                       </span>
                     }
-                    <button
-                      type="button"
-                      class="delete-button"
-                      [attr.aria-label]="'Supprimer l’entrée de ' + entry.playerName"
-                      (click)="requestBalanceEntryDeletion(entry.id)"
-                    >
-                      <i class="bi bi-trash-fill delete-icon" aria-hidden="true"></i>
-                    </button>
                   </div>
                 </li>
               }
@@ -264,6 +262,43 @@
   }
 
   <dialog
+    #batchDialog
+    class="selection-modal batch-modal"
+    aria-labelledby="batch-modal-heading"
+    (cancel)="closeBatchSelection($event)"
+    (click)="onBatchDialogClick($event)"
+  >
+    <h2 id="batch-modal-heading">{{ batchSelectionMode() === 'payment' ? 'Marquer des amendes comme payées' : 'Supprimer des amendes' }}</h2>
+    <p class="selection-hint">{{ batchSelectionMode() === 'payment' ? 'Sélectionnez les amendes non payées.' : 'Sélectionnez les amendes non payées à supprimer.' }}</p>
+    <ul class="selection-list batch-selection-list">
+      @for (entry of batchEligibleEntries(); track entry.id) {
+        <li>
+          <label class="batch-selection-row">
+            <input type="checkbox" class="form-check-input" [checked]="selectedBalanceEntryIds().includes(entry.id)"
+              [disabled]="isApplyingBatch()" (change)="toggleBalanceEntrySelection(entry.id, $event)">
+            <span class="selection-fine-details">
+              <strong>{{ entry.playerName }} — {{ entry.failureName }}</strong>
+              <span>{{ entry.failureAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}
+                · {{ entry.createdAt | date: 'dd/MM/yyyy à HH:mm' : undefined : 'fr-FR' }}
+              </span>
+            </span>
+          </label>
+        </li>
+      } @empty {
+        <li>Aucune amende disponible.</li>
+      }
+    </ul>
+    @if (batchActionError()) {
+      <p class="text-danger mt-2" role="alert">{{ batchActionError() }}</p>
+    }
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline-secondary" [disabled]="isApplyingBatch()" (click)="closeBatchSelection()">Annuler</button>
+      <button type="button" class="btn btn-primary" [disabled]="selectedBalanceEntryIds().length === 0 || isApplyingBatch()"
+        (click)="validateBatchSelection()">Valider ({{ selectedBalanceEntryIds().length }})</button>
+    </div>
+  </dialog>
+
+  <dialog
     #selectionDialog
     class="selection-modal"
     aria-labelledby="selection-modal-heading"
@@ -361,10 +396,12 @@
         (click)="$event.stopPropagation()"
       >
         <h2 id="password-modal-heading">Accès protégé</h2>
-        @if (balanceEntryIdPendingDeletion !== null) {
+        @if (pendingBatchAction === 'deletion') {
+          <p class="password-hint">Saisissez le mot de passe pour sélectionner les amendes à supprimer.</p>
+        } @else if (pendingBatchAction === 'payment') {
+          <p class="password-hint">Saisissez le mot de passe pour sélectionner les amendes à marquer comme payées.</p>
+        } @else if (balanceEntryIdPendingDeletion !== null) {
           <p class="password-hint">Saisissez le mot de passe pour supprimer cette entrée.</p>
-        } @else if (balanceEntryIdPendingPayment !== null) {
-          <p class="password-hint">Saisissez le mot de passe pour marquer cette entrée comme payée.</p>
         } @else if (playerIdPendingDeletion !== null) {
           <p class="password-hint">La suppression du joueur effacera aussi ses entrées du journal.</p>
         } @else if (failureIdPendingDeletion !== null) {
@@ -388,8 +425,8 @@
             <p class="invalid-feedback d-block">Mot de passe incorrect.</p>
           }
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline-secondary" (click)="closePasswordModal()">Annuler</button>
-            <button type="submit" class="btn btn-primary">Valider</button>
+            <button type="button" class="btn btn-outline-secondary" [disabled]="isApplyingBatch()" (click)="closePasswordModal()">Annuler</button>
+            <button type="submit" class="btn btn-primary" [disabled]="isApplyingBatch()">Valider</button>
           </div>
         </form>
       </section>
