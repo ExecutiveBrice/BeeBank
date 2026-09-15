@@ -94,7 +94,6 @@ form .btn {
   height: 2.5rem;
 }
 
-.balance form,
 .players form,
 .settings form {
   align-items: end;
@@ -103,19 +102,12 @@ form .btn {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.balance-form-fields {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr 1fr;
-}
-
-.balance-form-fields > div,
 .player-form-fields > div,
 .failure-form-fields > div {
   min-width: 0;
 }
 
-.balance-form-fields select {
+.balance-player-select {
   width: 100%;
 }
 
@@ -295,7 +287,8 @@ button.payment-status--unpaid {
 }
 
 .password-modal,
-.amount-modal {
+.amount-modal,
+.selection-modal {
   background: #fff;
   border-radius: 0.5rem;
   box-shadow: 0 1rem 3rem rgb(0 0 0 / 20%);
@@ -305,16 +298,89 @@ button.payment-status--unpaid {
 }
 
 .password-modal h2,
-.amount-modal h2 {
+.amount-modal h2,
+.selection-modal h2 {
   margin: 0 0 1rem;
 }
 
-.amount-modal {
+.amount-modal,
+.selection-modal {
   border: 0;
 }
 
-.amount-modal::backdrop {
+.amount-modal::backdrop,
+.selection-modal::backdrop {
   background: rgb(0 0 0 / 45%);
+}
+
+.selection-modal {
+  max-height: min(42rem, calc(100vh - 2rem));
+  max-width: min(32rem, calc(100vw - 2rem));
+  overflow-y: auto;
+}
+
+.selection-hint,
+.selection-empty {
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.selection-list {
+  margin: 0;
+}
+
+.selection-list li {
+  gap: 1rem;
+  padding: 0.75rem 0;
+}
+
+.selection-fine-details {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.selection-fine-details strong {
+  overflow-wrap: anywhere;
+}
+
+.selection-fine-details span {
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.selection-quantity {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.375rem;
+}
+
+.selection-quantity output {
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.quantity-button {
+  align-items: center;
+  background: #f8f9fa;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  color: #212529;
+  display: inline-flex;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+.quantity-button:disabled {
+  opacity: 0.4;
+}
+
+.quantity-button:not(:disabled):hover,
+.quantity-button:not(:disabled):focus-visible {
+  background: #e9ecef;
 }
 
 .modal-actions {
@@ -499,14 +565,8 @@ h3 {
     display: none;
   }
 
-  .balance form,
   .settings form {
     gap: 0.5rem;
-  }
-
-  .balance-form-fields {
-    gap: 0.5rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .failure-form-fields {
@@ -520,14 +580,13 @@ h3 {
 
   .player-form-fields input,
   .failure-form-fields input,
-  .balance-form-fields select {
+  .balance-player-select {
     font-size: 0.875rem;
     min-width: 0;
     padding-bottom: 0.375rem;
     padding-top: 0.375rem;
   }
 
-  .balance form > .btn,
   .settings form > .btn {
     padding-left: 0.625rem;
     padding-right: 0.625rem;

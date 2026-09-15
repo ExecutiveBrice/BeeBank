@@ -6,6 +6,7 @@ import com.beebank.player.Player;
 import com.beebank.player.PlayerRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -111,6 +112,66 @@ class BalanceEntryControllerTest {
                 () -> controller.create(new CreateBalanceEntryRequest(1L, 2L, new BigDecimal("7.25"))))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("400 BAD_REQUEST");
+        verify(balanceEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void createsAllSelectedFinesWithTheRequestedQuantitiesAndAmounts() {
+        prepareCreation(false);
+        BalanceEntryCreationDetails editableDetails = mock(BalanceEntryCreationDetails.class);
+        when(editableDetails.getPlayerId()).thenReturn(1L);
+        when(editableDetails.getPlayerName()).thenReturn("Alice");
+        when(editableDetails.getFailureId()).thenReturn(3L);
+        when(editableDetails.getFailureName()).thenReturn("Matériel");
+        when(editableDetails.getFailureAmount()).thenReturn(new BigDecimal("5.00"));
+        when(editableDetails.getFailureFreeAmount()).thenReturn(true);
+        when(balanceEntryRepository.findCreationDetails(1L, 3L)).thenReturn(editableDetails);
+        when(failureRepository.getReferenceById(3L))
+                .thenReturn(new Failure("Matériel", new BigDecimal("5.00"), true));
+
+        var response = controller.createBatch(new CreateBalanceEntriesRequest(1L, List.of(
+                new CreateBalanceEntriesRequest.Selection(2L, 3, null),
+                new CreateBalanceEntriesRequest.Selection(3L, 1, new BigDecimal("7.25"))
+        )));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getBody()).hasSize(4);
+        assertThat(response.getBody().stream().map(BalanceEntryResponse::failureAmount).toList())
+                .containsExactly(new BigDecimal("2.50"), new BigDecimal("2.50"),
+                        new BigDecimal("2.50"), new BigDecimal("7.25"));
+        var captor = org.mockito.ArgumentCaptor.forClass(BalanceEntry.class);
+        verify(balanceEntryRepository, org.mockito.Mockito.times(4)).save(captor.capture());
+        assertThat(captor.getAllValues().getLast().getAmount()).isEqualByComparingTo("7.25");
+    }
+
+    @Test
+    void rejectsMultipleCopiesOfAnEditableFineBeforeSavingAnything() {
+        prepareCreation(true);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.createBatch(
+                new CreateBalanceEntriesRequest(1L, List.of(
+                        new CreateBalanceEntriesRequest.Selection(2L, 2, new BigDecimal("7.25"))
+                ))))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("400 BAD_REQUEST");
+        verify(balanceEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void validatesEveryBatchItemBeforeSaving() {
+        prepareCreation(false);
+        BalanceEntryCreationDetails missingDetails = mock(BalanceEntryCreationDetails.class);
+        when(missingDetails.getPlayerId()).thenReturn(1L);
+        when(missingDetails.getFailureId()).thenReturn(null);
+        when(balanceEntryRepository.findCreationDetails(1L, 3L)).thenReturn(missingDetails);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.createBatch(
+                new CreateBalanceEntriesRequest(1L, List.of(
+                        new CreateBalanceEntriesRequest.Selection(2L, 2, null),
+                        new CreateBalanceEntriesRequest.Selection(3L, 1, null)
+                ))))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("404 NOT_FOUND");
         verify(balanceEntryRepository, never()).save(any());
     }
 

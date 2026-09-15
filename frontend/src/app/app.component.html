@@ -39,51 +39,19 @@
 
   @if (activeTab() === 'balance') {
     <section id="balance" class="balance" aria-labelledby="balance-heading">
-      <form (submit)="addBalanceEntry(); $event.preventDefault()">
-        <div class="balance-form-fields">
-          <div>
-            <label class="visually-hidden" for="balance-player">Joueur</label>
-            <select
-              id="balance-player"
-              class="form-select shadow-sm"
-              [value]="selectedPlayerId()"
-              (change)="updateSelectedPlayer($event)"
-              required
-            >
-              <option value="" disabled>Joueur</option>
-              @for (player of players(); track player.id) {
-                <option [value]="player.id">{{ player.name }}</option>
-              }
-            </select>
-          </div>
-          <div>
-            <label class="visually-hidden" for="balance-failure">Amende</label>
-            <select
-              id="balance-failure"
-              class="form-select shadow-sm"
-              [value]="selectedFailureId()"
-              (change)="updateSelectedFailure($event)"
-              required
-            >
-              <option value="" disabled>Amende</option>
-              @for (failure of failures(); track failure.id) {
-                <option
-                  [value]="failure.id"
-                  [attr.title]="failure.freeAmount ? 'Montant modifiable' : null"
-                  [attr.aria-label]="failure.name + ' — ' + (failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR') + (failure.freeAmount ? ' — Montant modifiable' : '')"
-                >{{ failure.name }} — {{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}{{ failure.freeAmount ? ' ✎' : '' }}</option>
-              }
-            </select>
-          </div>
-        </div>
-        <button
-          type="submit"
-          class="btn btn-primary shadow-sm"
-          [disabled]="players().length === 0 || failures().length === 0 || isAddingBalanceEntry()"
-        >
-          Ajouter
-        </button>
-      </form>
+      <label class="visually-hidden" for="balance-player">Joueur</label>
+      <select
+        id="balance-player"
+        class="form-select shadow-sm balance-player-select"
+        [value]="selectedPlayerId()"
+        (change)="updateSelectedPlayer($event)"
+        [disabled]="isAddingBalanceEntry()"
+      >
+        <option value="">Joueur</option>
+        @for (player of players(); track player.id) {
+          <option [value]="player.id">{{ player.name }}</option>
+        }
+      </select>
 
 
       @for (group of balanceEntryGroups(); track group.paid) {
@@ -296,6 +264,55 @@
   }
 
   <dialog
+    #selectionDialog
+    class="selection-modal"
+    aria-labelledby="selection-modal-heading"
+    (cancel)="closeSelectionModal($event)"
+    (click)="onSelectionDialogClick($event)"
+  >
+    <h2 id="selection-modal-heading">Amendes pour {{ selectedPlayerName() }}</h2>
+    <p class="selection-hint">Sélectionnez les amendes à ajouter.</p>
+    @if (failures().length === 0) {
+      <p class="selection-empty">Aucune amende enregistrée.</p>
+    } @else {
+      <ul class="selection-list">
+        @for (failure of failures(); track failure.id) {
+          <li>
+            <div class="selection-fine-details">
+              <strong>{{ failure.name }}</strong>
+              <span>
+                {{ failure.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'fr-FR' }}
+                @if (failure.freeAmount) {
+                  <span role="img" aria-label="Montant modifiable" title="Montant modifiable">✎</span>
+                }
+              </span>
+            </div>
+            <div class="selection-quantity" [attr.aria-label]="'Quantité de ' + failure.name">
+              <button type="button" class="quantity-button" [attr.aria-label]="'Retirer une amende ' + failure.name"
+                [disabled]="fineQuantity(failure.id) === 0" (click)="changeFineQuantity(failure, -1)">
+                <i class="bi bi-dash-lg" aria-hidden="true"></i>
+              </button>
+              <output [attr.aria-label]="fineQuantity(failure.id) + ' amende(s) ' + failure.name">{{ fineQuantity(failure.id) }}</output>
+              <button type="button" class="quantity-button" [attr.aria-label]="'Ajouter une amende ' + failure.name"
+                [disabled]="failure.freeAmount && fineQuantity(failure.id) === 1" (click)="changeFineQuantity(failure, 1)">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+    @if (selectionError()) {
+      <p class="text-danger mt-2" role="alert">{{ selectionError() }}</p>
+    }
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline-secondary" [disabled]="isAddingBalanceEntry()" (click)="closeSelectionModal()">Annuler</button>
+      <button type="button" class="btn btn-primary" [disabled]="selectedFineCount() === 0 || isAddingBalanceEntry()"
+        (click)="validateFineSelection()">Valider ({{ selectedFineCount() }})</button>
+    </div>
+  </dialog>
+
+  <dialog
     #amountDialog
     class="amount-modal"
     aria-labelledby="amount-modal-heading"
@@ -303,7 +320,7 @@
     (cancel)="closeAmountModal($event)"
     (click)="onAmountDialogClick($event)"
   >
-    <h2 id="amount-modal-heading">Montant de l’échec</h2>
+    <h2 id="amount-modal-heading">Montant de l’amende</h2>
     <p id="amount-modal-hint" class="password-hint">
       {{ pendingBalanceEntry()?.player?.name }} — {{ pendingBalanceEntry()?.failure?.name }}.
       Vous pouvez modifier le montant proposé.
@@ -329,7 +346,7 @@
       }
       <div class="modal-actions">
         <button type="button" class="btn btn-outline-secondary" [disabled]="isAddingBalanceEntry()" (click)="closeAmountModal()">Annuler</button>
-        <button type="submit" class="btn btn-primary" [disabled]="isAddingBalanceEntry()">Ajouter</button>
+        <button type="submit" class="btn btn-primary" [disabled]="isAddingBalanceEntry()">Valider</button>
       </div>
     </form>
   </dialog>

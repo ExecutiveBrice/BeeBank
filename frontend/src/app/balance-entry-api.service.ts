@@ -17,6 +17,10 @@ export class BalanceEntryApiService {
     return this.http.post<BalanceEntry>(this.endpoint, { playerId, failureId, amount });
   }
 
+  createBatch(playerId: number, selections: { failureId: number; quantity: number; amount?: number }[]): Observable<BalanceEntry[]> {
+    return this.http.post<BalanceEntry[]>(`${this.endpoint}/batch`, { playerId, selections });
+  }
+
   markAsPaid(id: number, password: string): Observable<BalanceEntry> {
     return this.http.patch<BalanceEntry>(`${this.endpoint}/${id}/paid`, null, {
       headers: { 'X-Access-Password': password }

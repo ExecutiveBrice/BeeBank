@@ -40,10 +40,18 @@ export class AppComponent {
   protected readonly failureAmount = signal('');
   protected readonly failureFreeAmount = signal(false);
   protected readonly pendingBalanceEntry = signal<{ player: Player; failure: Failure } | null>(null);
+  protected readonly selectionModalOpen = signal(false);
+  protected readonly selectedFailureQuantities = signal<Record<number, number>>({});
+  protected readonly selectedFailureAmounts = signal<Record<number, number>>({});
+  protected readonly selectionError = signal('');
+  protected readonly selectedFineCount = computed(() =>
+    Object.values(this.selectedFailureQuantities()).reduce((total, quantity) => total + quantity, 0)
+  );
   protected readonly balanceEntryAmount = signal('');
   protected readonly balanceEntryAmountError = signal('');
   protected readonly isAddingBalanceEntry = signal(false);
   private readonly amountDialog = viewChild<ElementRef<HTMLDialogElement>>('amountDialog');
+  private readonly selectionDialog = viewChild<ElementRef<HTMLDialogElement>>('selectionDialog');
   protected readonly balanceEntries = signal<BalanceEntry[]>([]);
   protected readonly balanceEntryGroups = computed(() => [
     {
@@ -88,7 +96,9 @@ export class AppComponent {
     return totalInCents / 100;
   });
   protected readonly selectedPlayerId = signal('');
-  protected readonly selectedFailureId = signal('');
+  protected readonly selectedPlayerName = computed(() =>
+    this.players().find((player) => String(player.id) === this.selectedPlayerId())?.name ?? ''
+  );
   protected readonly activeTab = signal<Tab>('podium');
   protected readonly isPodiumLoading = signal(true);
   protected readonly passwordModalOpen = signal(false);
@@ -104,13 +114,29 @@ export class AppComponent {
 
   constructor() {
     effect(() => {
-      const dialog = this.amountDialog()?.nativeElement;
+      const amountDialog = this.amountDialog()?.nativeElement;
+      const selectionDialog = this.selectionDialog()?.nativeElement;
       if (this.pendingBalanceEntry()) {
-        if (dialog && !dialog.open) {
-          dialog.showModal();
+        if (selectionDialog?.open) {
+          selectionDialog.close();
+        }
+        if (amountDialog && !amountDialog.open) {
+          amountDialog.showModal();
+        }
+      } else if (this.selectionModalOpen()) {
+        if (amountDialog?.open) {
+          amountDialog.close();
+        }
+        if (selectionDialog && !selectionDialog.open) {
+          selectionDialog.showModal();
         }
       } else {
-        dialog?.close();
+        if (amountDialog?.open) {
+          amountDialog.close();
+        }
+        if (selectionDialog?.open) {
+          selectionDialog.close();
+        }
       }
     });
     this.loadPlayers();
@@ -194,37 +220,53 @@ export class AppComponent {
   }
 
   protected updateSelectedPlayer(event: Event): void {
-    this.selectedPlayerId.set((event.target as HTMLSelectElement).value);
+    const playerId = (event.target as HTMLSelectElement).value;
+    this.selectedPlayerId.set(playerId);
+    this.selectedFailureQuantities.set({});
+    this.selectedFailureAmounts.set({});
+    this.selectionError.set('');
+    this.selectionModalOpen.set(Boolean(playerId));
   }
 
-  protected updateSelectedFailure(event: Event): void {
-    this.selectedFailureId.set((event.target as HTMLSelectElement).value);
+  protected fineQuantity(failureId: number): number {
+    return this.selectedFailureQuantities()[failureId] ?? 0;
   }
 
-  protected addBalanceEntry(): void {
-    if (this.isAddingBalanceEntry() || this.pendingBalanceEntry()) {
+  protected changeFineQuantity(failure: Failure, change: number): void {
+    if (this.isAddingBalanceEntry()) {
       return;
     }
-    const playerId = Number(this.selectedPlayerId());
-    const failureId = Number(this.selectedFailureId());
-    if (!Number.isInteger(playerId) || playerId <= 0 || !Number.isInteger(failureId) || failureId <= 0) {
+    const current = this.fineQuantity(failure.id);
+    const next = Math.max(0, Math.min(failure.freeAmount ? 1 : Number.MAX_SAFE_INTEGER, current + change));
+    if (next === current) {
       return;
     }
+    this.selectedFailureQuantities.update((quantities) => ({ ...quantities, [failure.id]: next }));
+    if (next === 0) {
+      this.selectedFailureAmounts.update((amounts) => {
+        const updated = { ...amounts };
+        delete updated[failure.id];
+        return updated;
+      });
+    }
+    this.selectionError.set('');
+  }
 
-    const player = this.players().find((player) => player.id === playerId);
-    const failure = this.failures().find((failure) => failure.id === failureId);
-    if (!player || !failure) {
+  protected validateFineSelection(): void {
+    if (this.isAddingBalanceEntry() || this.selectedFineCount() === 0) {
       return;
     }
+    this.selectionError.set('');
+    this.selectionModalOpen.set(false);
+    this.promptNextFineAmount();
+  }
 
-    if (failure.freeAmount) {
-      this.balanceEntryAmount.set(String(failure.amount));
-      this.balanceEntryAmountError.set('');
-      this.pendingBalanceEntry.set({ player, failure });
+  protected closeSelectionModal(event?: Event): void {
+    event?.preventDefault();
+    if (this.isAddingBalanceEntry()) {
       return;
     }
-
-    this.createBalanceEntry(playerId, failureId);
+    this.resetFineSelection();
   }
 
   protected updateBalanceEntryAmount(event: Event): void {
@@ -241,50 +283,94 @@ export class AppComponent {
       return;
     }
 
-    this.createBalanceEntry(pending.player.id, pending.failure.id, amount);
+    this.selectedFailureAmounts.update((amounts) => ({ ...amounts, [pending.failure.id]: amount }));
+    this.amountDialog()?.nativeElement.close();
+    this.pendingBalanceEntry.set(null);
+    this.promptNextFineAmount();
   }
 
   protected closeAmountModal(event?: Event): void {
     event?.preventDefault();
     if (!this.isAddingBalanceEntry()) {
-      this.pendingBalanceEntry.set(null);
-      this.balanceEntryAmount.set('');
-      this.balanceEntryAmountError.set('');
+      this.resetFineSelection();
     }
   }
 
   protected onAmountDialogClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      const bounds = this.amountDialog()!.nativeElement.getBoundingClientRect();
-      if (event.clientX < bounds.left || event.clientX > bounds.right
-        || event.clientY < bounds.top || event.clientY > bounds.bottom) {
-        this.closeAmountModal();
-      }
+    if (this.clickedOutsideDialog(event, this.amountDialog()!.nativeElement)) {
+      this.closeAmountModal();
     }
   }
 
-  private createBalanceEntry(playerId: number, failureId: number, amount?: number): void {
+  protected onSelectionDialogClick(event: MouseEvent): void {
+    if (this.clickedOutsideDialog(event, this.selectionDialog()!.nativeElement)) {
+      this.closeSelectionModal();
+    }
+  }
+
+  private clickedOutsideDialog(event: MouseEvent, dialog: HTMLDialogElement): boolean {
+    if (event.target !== event.currentTarget) {
+      return false;
+    }
+    const bounds = dialog.getBoundingClientRect();
+    return event.clientX < bounds.left || event.clientX > bounds.right
+      || event.clientY < bounds.top || event.clientY > bounds.bottom;
+  }
+
+  private promptNextFineAmount(): void {
+    const player = this.players().find((item) => String(item.id) === this.selectedPlayerId());
+    if (!player) {
+      this.resetFineSelection();
+      return;
+    }
+    const failure = this.failures().find((item) => item.freeAmount && this.fineQuantity(item.id) > 0
+      && this.selectedFailureAmounts()[item.id] === undefined);
+    if (failure) {
+      this.balanceEntryAmount.set(String(failure.amount));
+      this.balanceEntryAmountError.set('');
+      this.pendingBalanceEntry.set({ player, failure });
+      return;
+    }
+    this.submitFineSelection(player.id);
+  }
+
+  private submitFineSelection(playerId: number): void {
+    const selections = this.failures()
+      .filter((failure) => this.fineQuantity(failure.id) > 0)
+      .map((failure) => ({
+        failureId: failure.id,
+        quantity: this.fineQuantity(failure.id),
+        amount: failure.freeAmount ? this.selectedFailureAmounts()[failure.id] : undefined
+      }));
+    if (selections.length === 0 || this.isAddingBalanceEntry()) {
+      return;
+    }
     this.balanceEntryAmountError.set('');
     this.isAddingBalanceEntry.set(true);
-    this.balanceEntryApi.create(playerId, failureId, amount)
+    this.balanceEntryApi.createBatch(playerId, selections)
       .pipe(finalize(() => this.isAddingBalanceEntry.set(false)))
       .subscribe({
-        next: (entry) => {
-          this.balanceEntries.update((entries) => [entry, ...entries]);
-          this.selectedPlayerId.set('');
-          this.selectedFailureId.set('');
-          this.pendingBalanceEntry.set(null);
-          this.balanceEntryAmount.set('');
+        next: (createdEntries) => {
+          this.balanceEntries.update((entries) => [...createdEntries].reverse().concat(entries));
+          this.resetFineSelection();
         },
         error: () => {
-          const message = 'Impossible d’ajouter cet échec. Veuillez réessayer.';
-          if (this.pendingBalanceEntry()) {
-            this.balanceEntryAmountError.set(message);
-          } else {
-            this.showToast(message);
-          }
+          this.pendingBalanceEntry.set(null);
+          this.selectionError.set('Impossible d’ajouter les amendes. Veuillez réessayer.');
+          this.selectionModalOpen.set(true);
         }
       });
+  }
+
+  private resetFineSelection(): void {
+    this.selectionModalOpen.set(false);
+    this.pendingBalanceEntry.set(null);
+    this.selectedPlayerId.set('');
+    this.selectedFailureQuantities.set({});
+    this.selectedFailureAmounts.set({});
+    this.balanceEntryAmount.set('');
+    this.balanceEntryAmountError.set('');
+    this.selectionError.set('');
   }
 
   protected requestBalanceEntryDeletion(id: number): void {
@@ -457,9 +543,11 @@ export class AppComponent {
       next: () => {
         this.failures.update((failures) => failures.filter((failure) => failure.id !== id));
         this.balanceEntries.update((entries) => entries.filter((entry) => entry.failureId !== id));
-        if (this.selectedFailureId() === String(id)) {
-          this.selectedFailureId.set('');
-        }
+        this.selectedFailureQuantities.update((quantities) => {
+          const updated = { ...quantities };
+          delete updated[id];
+          return updated;
+        });
         this.finishDeletion();
       },
       error: () => {
